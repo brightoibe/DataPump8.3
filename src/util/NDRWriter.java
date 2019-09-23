@@ -2368,8 +2368,11 @@ public class NDRWriter {
                 dayVal = duration * 7;
             }
 
-            if (dayVal > 120) {
-                dayVal = 30;
+            //if (dayVal > 120) {
+                //dayVal = 30;
+            //}
+             if (dayVal > 180) {
+                dayVal = 180;
             }
         }
         DateTime startDateTime = new DateTime(startDate);
