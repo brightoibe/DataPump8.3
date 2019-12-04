@@ -1734,8 +1734,8 @@ public class NDRWriter {
         //Set the Sending Organization in the Header
         //In this scenario we are using a fictional IP
         sendingOrganization = new FacilityType();
-        sendingOrganization.setFacilityName("CCFN");
-        sendingOrganization.setFacilityID("CCFN");
+        sendingOrganization.setFacilityName("IHVN");
+        sendingOrganization.setFacilityID("IHVN001");
         sendingOrganization.setFacilityTypeCode("IP");
         header.setMessageSendingOrganization(sendingOrganization);
 
