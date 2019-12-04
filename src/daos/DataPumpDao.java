@@ -2444,6 +2444,19 @@ public class DataPumpDao implements model.datapump.DataAccess {
                      This block of code extracts duration; durationUnit;
                      from the Obs List.
          */
+         //if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
+            obsPin = getConceptForForm(7778371, formID, obsList, visitDate); // Drug Duration unit
+            if (obsPin != null) {
+                durationUnit = obsPin.getVariableValue();
+            }
+            obsPin = getConceptForForm(7778370, formID, obsList, visitDate); // Drug Duration number
+            if (obsPin != null) {
+                duration = (int) obsPin.getValueNumeric();
+            }
+            stopDate = calculateStopDate(visitDate, duration, durationUnit);
+            
+        //}
+        /*if(StringUtils.isEmpty(durationUnit) || duration == 0 ){
         obsPin = getConceptForForm(7777821, 56, obsList, visitDate);
         if (obsPin != null) {
             valueCoded = obsPin.getValueCoded();
@@ -2490,22 +2503,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 durationUnit = "WEEK(S)";
             }
             
-        }
-        if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
-            obsPin = getConceptForForm(7778371, formID, obsList, visitDate); // Drug Duration unit
-            if (obsPin != null) {
-                durationUnit = obsPin.getVariableValue();
-            }
-            obsPin = getConceptForForm(7778370, formID, obsList, visitDate); // Drug Duration number
-            if (obsPin != null) {
-                duration = (int) obsPin.getValueNumeric();
-            }
-            
-        }
+        }*/
+       
         /*
             This calculates the stopDate;
          */
-        stopDate = calculateStopDate(visitDate, duration, durationUnit);
+        
 
         /* obsPin = getConceptForForm(7778364, formID, obsList);// Drug name
         if (obsPin != null) {
