@@ -95,6 +95,7 @@ import model.nigeriaqual.PediatricPatientStatus;
 import model.nigeriaqual.PediatricTuberculosis;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Weeks;
@@ -1783,7 +1784,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String sql_text = "select \n"
                 + "    `obs`.`obs_id`,\n"
                 + "    `obs`.`person_id`,\n"
-                + "    `obs`.`obs_datetime`,\n"
+                + "    CAST(`obs`.`obs_datetime` AS DATE) as obs_datetime,\n"
                 + "    `obs`.`concept_id`,\n"
                 + "    `obs`.`value_numeric`,\n"
                 + "     obs.value_coded,\n"
@@ -1912,7 +1913,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
     public model.datapump.Obs getConceptForForm(int conceptID, int formID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
-            if (ele.getConceptID() == conceptID && ele.getVisitDate().equals(visitDate)) {
+            if (ele.getConceptID() == conceptID && DateUtils.isSameDay(ele.getVisitDate(), visitDate)) {
                 obs = ele;
             }
         }
@@ -2425,6 +2426,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             int code = obsPin.getValueCoded();
             pepfarID = obsPin.getPepfarID();
             hospID = obsPin.getHospID();
+            
             if (code == 7778108) {
                 obsPin = getConceptForForm(7778108, formID, obsList, visitDate);
                 if (obsPin != null) {
