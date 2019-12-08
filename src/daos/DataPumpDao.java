@@ -18,6 +18,7 @@ import com.inductivehealth.ndr.schema.LaboratoryReportType;
 import com.inductivehealth.ndr.schema.PatientDemographicsType;
 import com.inductivehealth.ndr.schema.ProgramAreaType;
 import com.inductivehealth.ndr.schema.RegimenType;
+import dictionary.NDRMasterDictionary;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -1093,6 +1094,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
     
     public void runNDRExport(Date startDate, Date endDate, File file, model.datapump.Location loc) {//File datimIDFile) {
         ndrWriter = new NDRWriter();
+        NDRMasterDictionary NDRDictionary=new NDRMasterDictionary();
         errorHandler = new CustomErrorHandler();
         //loadDictionaries();
         int count = 0;
@@ -1104,7 +1106,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         ArrayList<model.datapump.Obs> ptsObsList = null;
         ArrayList<model.datapump.DrugOrder> orders = null;
         ArrayList<Integer> encounterList = null;
-        ArrayList<RegimenType> regimenTypeList = null;
+        List<RegimenType> regimenTypeList = null;
         ArrayList<model.datapump.Drugs> drugList = null;
         ArrayList<Container> containers = null;
         ArrayList<model.datapump.Visit> allVisitList = null;
@@ -1194,7 +1196,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     phamarcyObsList = getObsFromPharmacyForPatient(patientID);
                     orders = getDrugOrderForPatient(pts.getPatientID(), phamarcyObsList);// extract all regimens
                     drugList = getAllDrugsForPatient(pts.getPatientID(), phamarcyObsList);// extracts individual drugs especially OIs
-                    regimenTypeList = ndrWriter.createRegimenTypeList(orders, pts);
+                    regimenTypeList = NDRDictionary.createRegimenTypeList(pts, phamarcyObsList);
+                    //regimenTypeList = ndrWriter.createRegimenTypeList(orders, pts);
                     conditionType.getRegimen().addAll(regimenTypeList);
                     regimenTypeList = ndrWriter.createRegimenTypeListFromDrugs(drugList, pts);
                     conditionType.getRegimen().addAll(regimenTypeList);
@@ -1805,8 +1808,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "     `encounter`.`form_id` AS `form_id`,\n"
                 + "     `encounter`.`provider_id` AS `provider_id`,\n"
                 + "     `obs`.`location_id` AS `location_id` \n"
-                + "     from `obs` \n"
-                + "	inner join `patient` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
+                + "     from `patient` \n"
+                + "	inner join `obs` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
                 + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
                 + "     where encounter.form_id in(46,53,86) and encounter.patient_id=? and obs.voided=0 order by encounter.patient_id,encounter.encounter_datetime";
         
@@ -1913,7 +1916,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
     public model.datapump.Obs getConceptForForm(int conceptID, int formID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
-            if (ele.getConceptID() == conceptID && DateUtils.isSameDay(ele.getVisitDate(), visitDate)) {
+            if (ele.getConceptID() == conceptID && ele.getVisitDate().equals(visitDate)) {
                 obs = ele;
             }
         }
