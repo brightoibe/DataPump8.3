@@ -19,6 +19,7 @@ import com.inductivehealth.ndr.schema.PatientDemographicsType;
 import com.inductivehealth.ndr.schema.ProgramAreaType;
 import com.inductivehealth.ndr.schema.RegimenType;
 import dictionary.NDRMasterDictionary;
+import dictionary.NDRPharmacyDictionary;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -70,6 +71,7 @@ import model.datapump.Drugs;
 import model.datapump.Form;
 import model.form.ARTCommence;
 import model.form.CareCardFollowUp;
+import model.form.Pharmacy;
 import model.nigeriaqual.CareAndSupportAssessmentRecord;
 import model.nigeriaqual.DataARTAdherence;
 import model.nigeriaqual.DataARTRecord;
@@ -116,7 +118,7 @@ import util.NigeriaQualWriter;
  * @author brightoibe
  */
 public class DataPumpDao implements model.datapump.DataAccess {
-    
+
     int progress;
     private Connection connection;
     private model.datapump.DisplayScreen screen;
@@ -154,16 +156,16 @@ public class DataPumpDao implements model.datapump.DataAccess {
     private final static String COMMON_HEADER = "Data-set";
     private LocationMap locMap = new LocationMap();
     private DateFormat formatter;
-    
+    private NDRPharmacyDictionary pharmacyDictionary;
     public DataPumpDao() {
         zipFileEntryNames = new ArrayList<String>();
         mgr = new FileManager();
-        
+        pharmacyDictionary=new NDRPharmacyDictionary();
     }
-    
+
     public boolean loadDriver() {
         boolean ans;
-        
+
         try {
             Class.forName("com.mysql.jdbc.Driver").newInstance();
             ans = true;
@@ -186,7 +188,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-    
+
     @Override
     public boolean connect(model.datapump.DBConnection con) {
         boolean ans;
@@ -201,41 +203,42 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-    public Map<String,String> getGlobalProperties(){
-        Map<String,String> propertyMap=new HashMap<String,String>();
-        String sql_text="select property,property_value from global_property where property in('default_location','datim_id','nigeriaqual_id')";
-        PreparedStatement ps=prepareQuery(sql_text);
-        ResultSet rs=null;
-        try{
-            rs=ps.executeQuery();
-            while(rs.next()){
+
+    public Map<String, String> getGlobalProperties() {
+        Map<String, String> propertyMap = new HashMap<String, String>();
+        String sql_text = "select property,property_value from global_property where property in('default_location','datim_id','nigeriaqual_id')";
+        PreparedStatement ps = prepareQuery(sql_text);
+        ResultSet rs = null;
+        try {
+            rs = ps.executeQuery();
+            while (rs.next()) {
                 propertyMap.put(rs.getString("property"), rs.getString("property_value"));
             }
             cleanUp(rs, ps);
-        }catch(SQLException ex){
+        } catch (SQLException ex) {
             displayErrors(ex);
-        }finally{
+        } finally {
             cleanUp(rs, ps);
         }
         return propertyMap;
     }
-    
+
     @Override
     public void runReport(Date startDate, Date endDate, model.datapump.Location location, String encrypt, File file, String reportType, File datimIDFile) {
         zipFileEntryNames.clear();
         screen.updateProgress(0);
         loadDictionaries();
         int location_id = location.getLocationID();
-        Map<String,String> propertyMap=getGlobalProperties();
-        String datim_id=propertyMap.get("datim_id");
-        String default_facility=propertyMap.get("default_location");
-        String nigeriaqual_id=propertyMap.get("nigeriaqual_id");
+        Map<String, String> propertyMap = getGlobalProperties();
+        String datim_id = propertyMap.get("datim_id");
+        String default_facility = propertyMap.get("default_location");
+        String nigeriaqual_id = propertyMap.get("nigeriaqual_id");
         location.setDatimID(datim_id);
         location.setDefaultLoacation(default_facility);
         location.setNigeriaQualID(nigeriaqual_id);
         //loadPatientDemographics(location_id);
         loadDemographics(location_id);
-        
+
         /*try {
             if (datimIDFile != null) {
                 locMap.loadLocation(datimIDFile);
@@ -263,12 +266,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } else if (reportType.equalsIgnoreCase("NDR")) {
             //if (locMap.hasNDRDatimID(location)) {
             if (!StringUtils.isEmpty(location.getDatimID())) {
-                if(!StringUtils.isEmpty(location.getDefaultLoacation())){
-                     runNDRExport(startDate, endDate, file, location);//, datimIDFile);    
-                }else{
-                     screen.showError("add default_location to global property");
+                if (!StringUtils.isEmpty(location.getDefaultLoacation())) {
+                    runNDRExport(startDate, endDate, file, location);//, datimIDFile);    
+                } else {
+                    screen.showError("add default_location to global property");
                 }
-            }else{
+            } else {
                 screen.showError("add datim_id to global property");
             }
         } else if (reportType.equalsIgnoreCase("ADULTNIGERIAQUAL")) {
@@ -285,10 +288,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
             } else {
                 screen.showError("add nigeriaqual_id to global property");
             }
-            
+
         }
     }
-    
+
     public void runPedNigeriaQualExport(Date startDate, Date endDate, File file, model.datapump.Location loc) {// File datimIDFile) {
         long startTime = System.currentTimeMillis();
         screen.updateMinMaxProgress(0, 13);
@@ -345,9 +348,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateProgress(13);
         long duration = calculateDuration(startTime);
         screen.updateStatus("Writing Pediatric Export Completed " + duration + " secs");
-        
+
     }
-    
+
     public void runPediatricTuberculosisRecord(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataTuberculosis.xml...");
         HashMap<Integer, model.datapump.Obs> obsTBStatusMap = null;
@@ -385,14 +388,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
             mgr.endXMLDocument();
             mgr.closeXMLWriter();
-            
+
         } catch (XMLStreamException ex) {
             ex.printStackTrace();
         } catch (IOException ex) {
             ex.printStackTrace();
         }
     }
-    
+
     public void runPediatricPatientStatusReviewPeriod(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing PediatricPatientStatusReviewPeriod.xml...");
         Integer[] formIDArr = {29};
@@ -418,9 +421,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-        
+
     }
-    
+
     public void runPediatricLinkage(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing PediatricLinkage.xml...");
         Integer[] formIDArr = {30, 51};
@@ -446,9 +449,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-        
+
     }
-    
+
     public void runPediatricEducation(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing PediatricEducation.xml...");
         Integer[] formIDArr = {30, 51};
@@ -474,9 +477,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-        
+
     }
-    
+
     public HashMap<Integer, Obs> getLastOfObsForPatients(Date endDate, int locationID, Set<Integer> idSet, int conceptID) {
         HashMap<Integer, Obs> obsList = new HashMap<Integer, Obs>();
         /*String sql_text="SELECT * from obs \n" +
@@ -516,7 +519,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "     from obs where obs.voided=0 and obs.concept_id=? and obs.person_id in(" + buildString(idSet) + ") AND obs.obs_datetime <=? GROUP BY obs.person_id, obs.concept_id) \n"
                 + "	sinner on(sinner.person_id=obs.person_id and sinner.concept_id=obs.concept_id and encounter.encounter_datetime=sinner.date_obs)\n"
                 + "	where obs.concept_id=? and encounter.voided=0 and encounter.encounter_datetime<=? AND encounter.patient_id in (" + buildString(idSet) + ") order by encounter.patient_id";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         Obs obs = null;
@@ -534,7 +537,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 obsList.put(obs.getPatientID(), obs);
                 //System.out.println("Patient ID Obs: "+obs.getVariableName()+" Value: "+obs.getVariableValue());
             }
-            
+
         } catch (SQLException ex) {
             ex.printStackTrace();
         } finally {
@@ -542,7 +545,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public void runPediatricPatientMonitoringDuringReviewPeriod(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing PediatricPatientMonitoringReviewPeriod.xml...");
         Integer[] conceptArr = {88, 1153, 85, 860, 313, 329, 309};
@@ -571,7 +574,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public void runPediatricCotrimoxazole(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing PediatricCotrimoxazoleReportingPeriod.xml...");
         //ArrayList<model.datapump.PatientRegimen> ptsCotrimRegimenList = getFirstReceivedCotrimReviewPeriod(startDate, endDate, location_id, idSet);
@@ -599,7 +602,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public HashMap<Integer, Date> getFirstReceivedCotrimReviewPeriod(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         /*String sql_text="SELECT * FROM regimen\n" +
 "INNER JOIN \n" +
@@ -649,7 +652,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsFirstDateMap;
     }
-    
+
     public ArrayList<model.datapump.PatientRegimen> getFirstReceivedCotrimReviewPeriod2(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         /*String sql_text="SELECT * FROM regimen\n" +
 "INNER JOIN \n" +
@@ -696,7 +699,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsCotrimRegimen;
     }
-    
+
     public void runPedClinicalEvalExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing Pediatric_ClinicalEvaluationInReviewPeriod.xml...");
         Integer[] formArr = {18, 24, 27, 20, 56};
@@ -730,7 +733,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public void runPedRegimenDuringReviewPeriod(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing Pediatric_ARTRegimenSinceStartingTreatment.xml...Please wait");
         ArrayList<Integer> patientOnARTFirstDayList = null, patientOnARTAnytimeList = null;
@@ -748,7 +751,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
             mgr.writeXMLHeader(COMMON_HEADER, NAMES_SPACE);
-            
+
             for (PediatricARTRegimenSinceStartingTreatment drr : dataRegimenDuringReviewList) {
                 mgr.writeToXML(drr);
                 count++;
@@ -764,7 +767,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public void runPediatricBaselineParameterExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing Pediatric_BaselineParameters.xml file...Please wait");
         long startTime = System.currentTimeMillis();
@@ -794,7 +797,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 }
                 dataBaselineParaList.add(dataBaselinePara);
             }
-            
+
         }
         String fileName = "Pediatric_BaselineParameters.xml";
         try {
@@ -819,7 +822,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     private void loadFirstRegimens(Set<Integer> idSet) {
         ResultSet rs = null;
         Statement stmt = null;
@@ -865,7 +868,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "     from obs where obs.voided=0 and obs.concept_id in(7778111,7778531) and obs.person_id in(" + buildString(idSet) + ") GROUP BY obs.person_id) \n"
                 + "	sinner on(sinner.person_id=obs.person_id and sinner.concept_id=obs.concept_id and DATE(encounter.encounter_datetime)=sinner.date_obs)\n"
                 + "	where obs.concept_id in(7778111,7778531) and encounter.patient_id in(" + buildString(idSet) + ") and encounter.voided=0 order by encounter.patient_id;";
-        
+
         int count = 0;
         Obs obs = null;
         ArrayList<Obs> obsList = null;
@@ -892,7 +895,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
             rs.close();
             stmt.close();
-            
+
         } catch (SQLException ex) {
             ex.printStackTrace();
             screen.updateStatus(ex.getMessage());
@@ -906,13 +909,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 if (StringUtils.isNotEmpty(ptsRegimen.getRegimenLine())) {
                     firstRegimenDictionary.put(id, ptsRegimen);
                 }
-                
+
             }
-            
+
         }
         //firstRegimenDictionary=firstRegimenMap;
     }
-    
+
     public void loadONARTPatients() {
         //String sql_text="SELECT DISTINCT PATIENT_ID FROM regimen WHERE REGIMEN_CODE is not null";
         String sql_text = "select DISTINCT obs.person_id from obs where concept_id in(7778108,7778109) and obs.voided=0";
@@ -937,7 +940,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public void runPediatricARTAdherence(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing Pediatric_ART_Adherence.xml...Please wait");
         long startTime = System.currentTimeMillis();
@@ -961,7 +964,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             mgr.closeXMLWriter();
             long duration = calculateDuration(startTime);
             screen.updateStatus("Pediatric_ART_Adherence.xml Completed " + duration + " secs");
-            
+
         } catch (XMLStreamException ex) {
             ex.printStackTrace();
             screen.updateStatus(ex.getMessage());
@@ -970,7 +973,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus(ex.getMessage());
         }
     }
-    
+
     public void runPediatricPatientDemographics(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing PediatricPatientDemographics.xml file...Please wait");
         long startTime = System.currentTimeMillis();
@@ -990,7 +993,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String fileName = "PediatricPatientDemographics.xml";
         int count = 0;
         zipFileEntryNames.add(fileName);
-        
+
         try {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
@@ -999,7 +1002,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 mgr.writeToXML(ele);
                 count++;
                 screen.updateStatus("Writing PediatricPatientDemographics.xml file.." + count + " files written");
-                
+
             }
             mgr.endXMLDocument();
             mgr.closeXMLWriter();
@@ -1013,7 +1016,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public Set<Integer> getSamplePedPatients(Date startDate, Date endDate, int locationID) {
         Set<Integer> idSet = new HashSet<Integer>();
         Set<Integer> sampleSet = new HashSet<Integer>();
@@ -1082,7 +1085,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             sampleSet = getRandomPatients(idSet, sampleSize);
             rs.close();
             ps.close();
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -1091,10 +1094,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return sampleSet;
     }
-    
+
     public void runNDRExport(Date startDate, Date endDate, File file, model.datapump.Location loc) {//File datimIDFile) {
         ndrWriter = new NDRWriter();
-        NDRMasterDictionary NDRDictionary=new NDRMasterDictionary();
+        NDRMasterDictionary NDRDictionary = new NDRMasterDictionary();
         errorHandler = new CustomErrorHandler();
         //loadDictionaries();
         int count = 0;
@@ -1136,7 +1139,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         FileManager mgr = new FileManager();
         File file2 = null;
         ArrayList<model.datapump.Obs> phamarcyObsList = new ArrayList<model.datapump.Obs>();
-        
+
         try {
             mgr.createCSVWriter("errorlog.csv");
             String[] headers = {"ErrorFileName", "ErrorLine", "ErrorPosition", "ErrorPosition", "ErrorMessage"};
@@ -1157,20 +1160,20 @@ public class DataPumpDao implements model.datapump.DataAccess {
             allVisitList = loadAllVisit(idSet);
             for (model.datapump.Demographics pts : patients) {
                 int patientID = pts.getPatientID();
-                if (patientID==16507 && !pts.getPepfarID().isEmpty() && !pts.getGender().isEmpty() && pts.getDateOfBirth() != null) {//&& StringUtils.contains(pts.getPepfarID(),"FCT1516")) {
+                if (!pts.getPepfarID().isEmpty() && !pts.getGender().isEmpty() && pts.getDateOfBirth() != null) {//&& StringUtils.contains(pts.getPepfarID(),"FCT1516")) {
                     messageID = UUID.randomUUID().toString();
                     container = ndrWriter.createContainer("UPDATED", messageID, schemaVersion);
                     individual = ndrWriter.createIndividualReport();
                     ptsObsList = getCommonQuestionsForPatient(patientID, commonQuestionObsList);
                     obsList = getPersonalHistoryObs(pts.getPatientID(), loc.getLocationID());
                     patientDemographicType = ndrWriter.createPatientDemographics(pts, loc, obsList, locMap);
-                    
+
                     individual.setPatientDemographics(patientDemographicType);
                     conditionType = ndrWriter.createConditionType("86406008");
                     conditionType.setPatientAddress(ndrWriter.createAddressType(pts));
                     pa = ndrWriter.createProgramAreaType("HIV");
                     conditionType.setProgramArea(pa);
-                    
+
                     Boolean deaseased = patientDemographicType.isPatientDeceasedIndicator();
                     if (deaseased == null) {
                         deaseased = false;
@@ -1182,7 +1185,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     Date adultEnrollDate = pts.getAdultEnrollmentDt();
                     // Date peadEnrollDate = pts.getPeadEnrollmentDt();
                     Date enrollDate = null;
-                    
+
                     if (adultEnrollDate != null) {
                         enrollDate = adultEnrollDate;
                     } else {
@@ -1202,13 +1205,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     regimenTypeList = ndrWriter.createRegimenTypeListFromDrugs(drugList, pts);
                     conditionType.getRegimen().addAll(regimenTypeList);
                     encounterType = ndrWriter.createEncounterType();
-                    
+
                     ptsVisitList = extractVisit(pts.getPatientID(), allVisitList);
                     Date artStartDate = null;
                     //ArrayList<Obs> tempObsList=null;
                     labObsList = new ArrayList<model.datapump.Obs>();
                     ArrayList<DrugOrder> ptsOrders = null, ctxInhARVList;
-                    
+
                     for (model.datapump.Visit ele : ptsVisitList) {
                         obsList = getAllObsForVisit(ele);
                         labObsList = extractLabObs(obsList);
@@ -1237,29 +1240,28 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     individual.getCondition().add(conditionType);
                     container.setIndividualReport(individual);
                     screen.updateProgress(count);
-                    
+
                     date = new Date();
                     file.mkdir();
                     file2 = new File(file.getAbsoluteFile() + "/" + file.getName() + dateFormat.format(date) + "_" + dateForma2t.format(date) + "_" + StringUtils.replace(pts.getPepfarID().toUpperCase(), "/", "").replaceAll("[^a-zA-Z0-9]", "") + ".xml");
                     ndrWriter.writeFile(jaxbMarshaller, container, file2, errorHandler);
-                    
+
                     screen.updateStatus("Writing xml...Please wait " + count2 + " of " + patients.size());
                     count2++;
                 }
                 count++;
-                
+
             }
             screen.updateStatus("Zipping xml files...");
             date = new Date();
-            
+
             //CompressUtil.zip(file.getAbsolutePath(), file.getParent() + "/" + loc.getDefaultLoacation()+ formatDate3(date) + dateForma2t.format(date).replaceAll("[^a-zA-Z0-9]", "") + ".zip", false, null);
             //CompressUtil.zip(file.getAbsolutePath(), file.getParent() + "/" + loc.getDefaultLoacation()+ formatDate3(date) + ".zip", false, null);
             //FileUtils.deleteDirectory(file);
-            
             errorHandler.closeMgr();
             screen.updateStatus("XML file completed for " + count2 + " out of " + count + " patients");
             screen.updateProgress(size);
-            
+
         } catch (DatatypeConfigurationException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -1294,7 +1296,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public ArrayList<model.datapump.Obs> extractLabObs(ArrayList<model.datapump.Obs> obsList) {
         ArrayList<model.datapump.Obs> labObsList = new ArrayList<model.datapump.Obs>();
         for (model.datapump.Obs ele : obsList) {
@@ -1304,14 +1306,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return labObsList;
     }
-    
+
     public String formatDate3(Date date) {
         String strDate = "";
         formatter = new SimpleDateFormat("dd-MMMM-yyyy");
         strDate = formatter.format(date);
         return strDate;
     }
-    
+
     public boolean isOnART(int patient_id) {
         boolean ans = false;
         if (firstRegimenDictionary.containsKey(patient_id)) {
@@ -1319,7 +1321,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-    
+
     public ArrayList<model.datapump.Obs> getAllObsForVisit(model.datapump.Visit visit) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         //String sql_text = "select * from obs where VISIT_DATE=? AND PATIENT_ID=? AND FORM_ID IN(24,18,46,56,72,27,20,53,67,47,1) AND VOIDED=0";
@@ -1375,7 +1377,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public ArrayList<model.datapump.Obs> extractClinicalObs(ArrayList<model.datapump.Obs> obsList) {
         ArrayList<model.datapump.Obs> clinicalObsList = new ArrayList<model.datapump.Obs>();
         //int[] cidArr={1734,1735,1733,85,571,84,568,575,265,1256,1741,1742,1013,860,862,528,861,864,865,866,1121,1122,1123,1124,88};
@@ -1383,13 +1385,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
         for (model.datapump.Obs obs : obsList) {
             if (Arrays.binarySearch(fidArr, obs.getFormID()) != -1) {
                 clinicalObsList.add(obs);
-                
+
             }
         }
         return clinicalObsList;
-        
+
     }
-    
+
     public ArrayList<model.datapump.Visit> extractVisit(int patientID, ArrayList<model.datapump.Visit> allVisitList) {
         ArrayList<model.datapump.Visit> visitList = new ArrayList<model.datapump.Visit>();
         for (model.datapump.Visit vs : allVisitList) {
@@ -1399,14 +1401,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return visitList;
     }
-    
+
     public ArrayList<Drugs> getAllDrugsForPatient(ArrayList<model.datapump.DrugOrder> drugOrderList) {
         ArrayList<Drugs> drugList = new ArrayList<Drugs>();
         for (model.datapump.DrugOrder ele : drugOrderList) {
             if (StringUtils.isNoneEmpty(ele.getDrugName())) {
                 drugList.add(ele);
             }
-            
+
         }
         //Drugs drg = null;
         /*String sql_text = "select * from drug where patient_id = ?";
@@ -1433,7 +1435,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         return drugList;*/
         return drugList;
     }
-    
+
     public ArrayList<Drugs> getAllDrugsForPatient(int patientID, ArrayList<model.datapump.Obs> pharmObsList) {
         ArrayList<Drugs> drugList = new ArrayList<Drugs>();
         Drugs drg = null;
@@ -1472,7 +1474,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         return drugList;*/
         return drugList;
     }
-    
+
     public Drugs constructDrug(ResultSet rs) throws SQLException {
         Drugs drg = new Drugs();
         drg.setPatientID(rs.getInt("patient_id"));
@@ -1505,7 +1507,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         drg.setUuid(rs.getString("uuid"));
         return drg;
     }
-    
+
     public ArrayList<model.datapump.DrugOrder> getDrugOrderForPatient(int patientID, ArrayList<model.datapump.Obs> obsList) {
         //ArrayList<model.datapump.Obs> obsList=new ArrayList<model.datapump.Obs>();
         model.datapump.DrugOrder patientRegimen = null;
@@ -1571,9 +1573,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         return drugOrderList;*/
         return patientRegimenList;
     }
-    
+
     public ArrayList<model.datapump.DrugOrder> getDrugOrderForPatient2(int patientID) {
-        
+
         ArrayList<model.datapump.DrugOrder> drugOrderList = new ArrayList<model.datapump.DrugOrder>();
         String sql_text = "select regimen.*,COALESCE(regimen.first_line,regimen.second_line) as regimen,s1.drug_name,s1.duration,s1.duration_unit from regimen \n"
                 + "inner join (select drug.patient_id, drug.dispensed_date,group_concat(drug.drug_name) as drug_name,drug.duration,drug.duration_unit \n"
@@ -1617,7 +1619,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return drugOrderList;
     }
-    
+
     public ArrayList<model.datapump.Obs> getObsForPatientForVisit(int patientID, Date endDate) {
 
         // ArrayList<model.datapump.DrugOrder> drugOrderList = new ArrayList<model.datapump.DrugOrder>();
@@ -1652,7 +1654,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "	inner join `patient` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
                 + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
                 + "     where encounter.form_id in(46,53,86,18,20,24,27,1) and encounter.patient_id=? and encounter.voided=0 and encounter.encounter_datetime=? order by encounter.patient_id";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         model.datapump.PatientRegimen order = null;
@@ -1697,7 +1699,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public ArrayList<model.datapump.Obs> getObsFromPharmacyForPatientForVisit(int patientID, Date visitDate) {
 
         // ArrayList<model.datapump.DrugOrder> drugOrderList = new ArrayList<model.datapump.DrugOrder>();
@@ -1732,7 +1734,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "	inner join `patient` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
                 + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
                 + "     where encounter.form_id in(46,53,86) and encounter.patient_id=? and encounter.voided=0 and encounter.encounter_datetime=? order by encounter.patient_id";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         model.datapump.PatientRegimen order = null;
@@ -1777,7 +1779,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public ArrayList<model.datapump.Obs> getObsFromPharmacyForPatient(int patientID) {
 
         // ArrayList<model.datapump.DrugOrder> drugOrderList = new ArrayList<model.datapump.DrugOrder>();
@@ -1812,7 +1814,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "	inner join `obs` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
                 + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
                 + "     where encounter.form_id in(46,53,86) and encounter.patient_id=? and obs.voided=0 order by encounter.patient_id,encounter.encounter_datetime";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         model.datapump.PatientRegimen order = null;
@@ -1827,7 +1829,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             //Date stopDate = null;
             while (rs.next()) {
                 obs = constructObs2(rs);
-                System.out.println("Concept ID: "+obs.getConceptID()+" VisitDate: "+obs.getVisitDate()+" Value: "+obs.getVariableValue());
+                //System.out.println("ConceptName: "+obs.getVariableName()+"Concept ID: "+obs.getConceptID()+" VisitDate: "+obs.getVisitDate()+" Value: "+obs.getVariableValue()+ " obs_group_id: "+obs.getObsGroupID());
                 obsList.add(obs);
                 /*order = new model.datapump.PatientRegimen();
                 order.setPatientID(rs.getInt("patient_id"));
@@ -1857,7 +1859,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public Set<Integer> getAllFormsFromObsList(ArrayList<model.datapump.Obs> obsList) {
         Set<Integer> formIDSet = new HashSet<Integer>();
         int formID = 0;
@@ -1867,7 +1869,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return formIDSet;
     }
-    
+
     public Set<Date> getAllVisitsFromObsList(ArrayList<model.datapump.Obs> obsList) {
         Set<Date> visitDateSet = new HashSet<Date>();
         Date visitDate = null;
@@ -1877,7 +1879,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return visitDateSet;
     }
-    
+
     public Set<Integer> getAllObsGroupIDsFromList(ArrayList<model.datapump.Obs> obsList, int formID) {
         Set<Integer> obsGroupIDSet = new HashSet<Integer>();
         int obsGroupID = 0;
@@ -1890,7 +1892,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsGroupIDSet;
     }
-    
+
     public Set<Integer> getAllObsGroupIDsFromList(ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         Set<Integer> obsGroupIDSet = new HashSet<Integer>();
         int obsGroupID = 0;
@@ -1903,7 +1905,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsGroupIDSet;
     }
-    
+
     public model.datapump.Obs getConceptForForm(int conceptID, int formID, ArrayList<model.datapump.Obs> obsList) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
@@ -1913,7 +1915,17 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obs;
     }
-    
+
+    public List<model.datapump.Obs> getConceptListFromObsList(int conceptID, int formID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
+        List<model.datapump.Obs> obsTargetList = new ArrayList<Obs>();
+        for (model.datapump.Obs ele : obsList) {
+            if (ele.getConceptID() == conceptID && ele.getVisitDate().equals(visitDate)) {
+                obsTargetList.add(ele);
+            }
+        }
+        return obsTargetList;
+    }
+
     public model.datapump.Obs getConceptForForm(int conceptID, int formID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
@@ -1923,18 +1935,18 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obs;
     }
-    
+
     public model.datapump.Obs getConceptForVisit(int conceptID, Date visitDate, ArrayList<model.datapump.Obs> obsList) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
             if (ele.getConceptID() == conceptID && ele.getVisitDate().equals(visitDate)) {
                 obs = ele;
-                
+
             }
         }
         return obs;
     }
-    
+
     public model.datapump.Obs getConceptForVisit(int conceptID, ArrayList<model.datapump.Obs> obsList) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
@@ -1944,7 +1956,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obs;
     }
-    
+
     public model.datapump.PatientRegimen extractPatientRegimen(ArrayList<Obs> obsList, int pid) {
         int duration = 0;
         int duration_unit = 0;
@@ -2016,7 +2028,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 visitDate = order.getStartDate();
             }
         }
-        
+
         duration = estimateDurationWeeks(visitDate, obsList);
         durationUnitStr = "WEEK(S)";
         /* // getting the duration
@@ -2054,7 +2066,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //order.setCreator(rs.getInt("creator_id"));
         return order;
     }
-    
+
     public model.datapump.PatientRegimen extractPatientRegimen(ArrayList<Obs> obsList, int pid, Date visitDate) {
         int duration = 0;
         int duration_unit = 0;
@@ -2163,7 +2175,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //order.setCreator(rs.getInt("creator_id"));
         return order;
     }
-    
+
     public int estimateDurationWeeks(Date visitDate, ArrayList<Obs> obsList) {
         int duration = 0;
         Obs obsPin = null;
@@ -2214,7 +2226,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     break;
                 default:
                     break;
-                
+
             }
         } else if (nextAppointmentDate != null) {
             DateTime aptDate = new DateTime(nextAppointmentDate);
@@ -2229,10 +2241,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } else {
             duration = 3 * 4;
         }
-        
+
         return duration;
     }
-    
+
     public int convertToWeeks(int durationUnit, double durationValue) {
         int durationWeeks = 0;
         switch (durationUnit) {
@@ -2250,7 +2262,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return durationWeeks;
     }
-    
+
     public model.datapump.Obs getConceptForForm(int conceptID, int obsGroupID, int formID, ArrayList<model.datapump.Obs> obsList) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
@@ -2260,17 +2272,18 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obs;
     }
-    
+
     public model.datapump.Obs getConceptForForm(int conceptID, int obsGroupID, int formID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
-            if (ele.getConceptID() == conceptID && ele.getFormID() == formID && ele.getObsGroupID() == obsGroupID && ele.getVisitDate().equals(visitDate)) {
+            //if (ele.getConceptID() == conceptID && ele.getFormID() == formID && ele.getObsGroupID() == obsGroupID && ele.getVisitDate().equals(visitDate)) {
+            if (ele.getConceptID() == conceptID  && ele.getObsGroupID() == obsGroupID && ele.getVisitDate().equals(visitDate)) {
                 obs = ele;
             }
         }
         return obs;
     }
-    
+
     public model.datapump.DrugOrder getRegimenObsParameters(int obsGroupID, ArrayList<model.datapump.Obs> obsList) {
         model.datapump.PatientRegimen order = new model.datapump.PatientRegimen();
         int patientID = 0;
@@ -2352,13 +2365,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 if (obsPin != null) {
                     frequency = obsPin.getVariableValue();
                 }
-                
+
                 enteredBy = ele.getEnteredBy();
                 dateEntered = ele.getDateEntered();
                 creatorID = ele.getCreator();
                 order.setPatientID(patientID);
                 order.setEncounterID(encounterID);
-                
+
                 order.setPepfarID(pepfarID);
                 order.setHospID(hospID);
                 order.setStartDate(startDate);
@@ -2373,12 +2386,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 order.setEnteredBy(enteredBy);
                 order.setDateEntered(dateEntered);
                 order.setCreator(creatorID);
-                
+
             }
         }
         return order;
     }
-    
+
     public model.datapump.DrugOrder getRegimenObsParameters(ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         model.datapump.PatientRegimen order = new model.datapump.PatientRegimen();
         int patientID = 0;
@@ -2395,6 +2408,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String dose = "";
         String frequency = "";
         int quantity = 0;
+        int regimenLineConceptID=0;
         String regimenCode = "";
         String regimenLine = "";
         String enteredBy = "";
@@ -2406,6 +2420,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         int valueCoded = 0;
         int encounterID = 0;
         int providerID = 0;
+        List<Obs> obsTargetList = null;
         //for (model.datapump.Obs ele : obsList) {
         //if (ele.getObsGroupID() == obsGroupID) {
         //formID = ele.getFormID();
@@ -2422,45 +2437,93 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 
          */
         startDate = visitDate;
-        String firstLine = "", secondLine = "";
-        
+        String firstLine = "", secondLine = "", thirdLine="", otherLine="";
+
         obsPin = getConceptForForm(7778111, formID, obsList, visitDate);
         if (obsPin != null) {
+            //System.out.println("Regimen Line seen "+obsPin.getVariableValue());
             regimenLine = obsPin.getVariableValue();
             int code = obsPin.getValueCoded();
             pepfarID = obsPin.getPepfarID();
             hospID = obsPin.getHospID();
-            
-            if (code == 7778108) {
-                obsPin = getConceptForForm(7778108, formID, obsList, visitDate);
-                if (obsPin != null) {
-                    firstLine = obsPin.getVariableValue();
-                    regimenName = firstLine;
-                }
-            } else if (code == 7778109) {
-                obsPin = getConceptForForm(7778109, formID, obsList, visitDate);
-                if (obsPin != null) {
-                    secondLine = obsPin.getVariableValue();
-                    regimenName = secondLine;
-                }
+            regimenLineConceptID=code;
+            switch (code) {
+                case 7778108:
+                    obsPin = getConceptForForm(7778108, formID, obsList, visitDate);
+                    if (obsPin != null) {
+                        firstLine = obsPin.getVariableValue();
+                        regimenName = firstLine;
+                        //System.out.println("Regimen seen "+obsPin.getVariableValue());
+                    }   break;
+                case 7778109:
+                    obsPin = getConceptForForm(7778109, formID, obsList, visitDate);//Second Line
+                    if (obsPin != null) {
+                        secondLine = obsPin.getVariableValue();
+                        regimenName = secondLine;
+                        //System.out.println("Regimen seen "+obsPin.getVariableValue());
+                    }   break;
+                case 7778611:
+                    obsPin=getConceptForForm(7778611, formID, obsList, visitDate);//Third Line
+                    if(obsPin!=null){
+                        thirdLine=obsPin.getVariableValue();
+                        regimenName=thirdLine;
+                    } 
+                    break;
+                case 7778410:
+                    obsPin=getConceptForForm(7778410, formID, obsList, visitDate);//Other drugs
+                    if(obsPin!=null){
+                        otherLine=obsPin.getVariableValue();
+                        regimenName=otherLine;
+                    }
+                break;
+                default:
+                    break;
+            }
+
+        }
+        /*
+            Extract the DrugName Concept and check if it is ARV
+         */
+        obsTargetList = getConceptListFromObsList(7778364, formID, obsList, visitDate);//Find all drugName Concepts
+        obsPin=getARVDrugConceptFromList(obsTargetList, visitDate);// extract the first ARV Drug Dispensed
+        int obs_group_id=0;
+        if(obsPin!=null){
+            obs_group_id=obsPin.getObsGroupID();
+            obsPin=getConceptForForm(7778371, obs_group_id, formID, obsList,visitDate);//Get Drug Duration Unit
+            if(obsPin!=null){
+                durationUnit=obsPin.getVariableValue();
+            }
+            obsPin=getConceptForForm(7778370, obs_group_id, formID, obsList,visitDate);//Get Drug Duration Value
+            if(obsPin!=null){
+                duration=(int)obsPin.getValueNumeric();
+            }
+            obsPin = getConceptForForm(7778365, obs_group_id, formID, obsList,visitDate);//Get Drug Strength Value
+            if (obsPin != null) {
+                strength = obsPin.getVariableValue();
+            }
+            obsPin = getConceptForForm(7778407, obs_group_id, formID, obsList,visitDate);//Get Drug Frequency Value
+            if (obsPin != null) {
+                 frequency = obsPin.getVariableValue();
             }
             
         }
+        stopDate = calculateStopDate(visitDate, duration, durationUnit);
+
         /*
                      This block of code extracts duration; durationUnit;
                      from the Obs List.
          */
-         //if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
-            obsPin = getConceptForForm(7778371, formID, obsList, visitDate); // Drug Duration unit
-            if (obsPin != null) {
-                durationUnit = obsPin.getVariableValue();
-            }
-            obsPin = getConceptForForm(7778370, formID, obsList, visitDate); // Drug Duration number
-            if (obsPin != null) {
-                duration = (int) obsPin.getValueNumeric();
-            }
-            stopDate = calculateStopDate(visitDate, duration, durationUnit);
-            
+        //if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
+        /*obsPin = getConceptForForm(7778371, formID, obsList, visitDate); // Drug Duration unit
+        if (obsPin != null) {
+            durationUnit = obsPin.getVariableValue();
+        }
+        obsPin = getConceptForForm(7778370, formID, obsList, visitDate); // Drug Duration number
+        if (obsPin != null) {
+            duration = (int) obsPin.getValueNumeric();
+        }*/
+        
+
         //}
         /*if(StringUtils.isEmpty(durationUnit) || duration == 0 ){
         obsPin = getConceptForForm(7777821, 56, obsList, visitDate);
@@ -2510,13 +2573,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
             
         }*/
-       
-        /*
+ /*
             This calculates the stopDate;
          */
-        
-
-        /* obsPin = getConceptForForm(7778364, formID, obsList);// Drug name
+ /* obsPin = getConceptForForm(7778364, formID, obsList);// Drug name
         if (obsPin != null) {
             drugName = obsPin.getVariableValue();
             drugConceptID = obsPin.getValueCoded();//ConceptID();
@@ -2561,14 +2621,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
         creatorID = ele.getCreator();*/
         order.setPatientID(patientID);
         order.setEncounterID(encounterID);
-        
+        order.setRegimenLineConceptID(regimenLineConceptID);
         order.setPepfarID(pepfarID);
         order.setHospID(hospID);
         order.setStartDate(startDate);
         order.setStopDate(stopDate);
         //order.setDrugName(drugName);
         //order.setDrugName(drugName);
-        //order.setFrequency(frequency);
+        order.setFrequency(frequency);
         //order.setConceptID(drugConceptID);
         order.setRegimenName(regimenName);
         order.setCode(String.valueOf(getCode(regimenName)));
@@ -2581,7 +2641,20 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //}
         return order;
     }
-    
+
+    public Obs getARVDrugConceptFromList(List<Obs> obsList, Date visitDate) {
+        Obs obs = null;
+        int valueCoded = 0;
+        for (Obs ele : obsList) {
+            valueCoded = ele.getValueCoded();
+            if (visitDate.equals(ele.getVisitDate()) && pharmacyDictionary.isARV(valueCoded)) {
+                obs=ele;
+                return obs;
+            }
+        }
+        return obs;
+    }
+
     public model.datapump.Drugs getDrugObsParameters(int obsGroupID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         model.datapump.Drugs drg = new model.datapump.Drugs();
         int patientID = 0;
@@ -2720,7 +2793,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 duration = wks.getWeeks();
                 durationUnit = "WEEK(S)";
             }
-            
+
         }
         if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
             obsPin = getConceptForForm(7778371, obsGroupID, formID, obsList); // Drug Duration unit
@@ -2731,7 +2804,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             if (obsPin != null) {
                 duration = (int) obsPin.getValueNumeric();
             }
-            
+
         }
         if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
             duration = 2;
@@ -2832,7 +2905,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //}
         return drg;
     }
-    
+
     public model.datapump.DrugOrder getRegimenObsParameters(int obsGroupID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
         model.datapump.PatientRegimen order = new model.datapump.PatientRegimen();
         int patientID = 0;
@@ -2923,11 +2996,11 @@ public class DataPumpDao implements model.datapump.DataAccess {
                             duration = 2;
                             durationUnit = "MONTH(S)";
                         }
-                        
+
                     }
                     //duration = 2;
                 }
-                
+
                 stopDate = calculateStopDate(order.getStartDate(), duration, durationUnit);
                 obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList);// Drug name
                 if (obsPin != null) {
@@ -2986,13 +3059,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 if (obsPin != null) {
                     frequency = obsPin.getVariableValue();
                 }
-                
+
                 enteredBy = ele.getEnteredBy();
                 dateEntered = ele.getDateEntered();
                 creatorID = ele.getCreator();
                 order.setPatientID(patientID);
                 order.setEncounterID(encounterID);
-                
+
                 order.setPepfarID(pepfarID);
                 order.setHospID(hospID);
                 order.setStartDate(startDate);
@@ -3007,12 +3080,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 order.setEnteredBy(enteredBy);
                 order.setDateEntered(dateEntered);
                 order.setCreator(creatorID);
-                
+
             }
         }
         return order;
     }
-    
+
     public ArrayList<model.datapump.Obs> getPersonalHistoryObs(int patient_id, int location_id) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         //String sql_text = "select DISTINCT * from obs where form_id in(18,19,45,65,20,29,71,1) and PATIENT_ID=? and VOIDED=0  AND VISIT_DATE>='2001-01-01' GROUP BY PATIENT_ID, CONCEPT_ID ORDER BY DATE_CREATED DESC ";
@@ -3045,7 +3118,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
                 + "	where encounter.form_id in(18,19,45,65,20,29,71,1) and encounter.voided=0 and encounter.patient_id=? and encounter.encounter_datetime>'2001-01-01'"
                 + "     GROUP BY encounter.patient_id,obs.concept_id order by encounter.date_created";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         model.datapump.Obs obs = null;
@@ -3068,7 +3141,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public Date calculateStopDate(Date startDate, int duration, String unit) {
         Date stopDate = null;
         int dayVal = 30;
@@ -3080,9 +3153,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             } else if (StringUtils.equalsIgnoreCase(unit, "WEEK(S)")) {
                 dayVal = duration * 7;
             }
-            
+
             //if (dayVal > 120) {
-               // dayVal = 30;
+            // dayVal = 30;
             //}
         }
         DateTime startDateTime = new DateTime(startDate);
@@ -3090,7 +3163,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         stopDate = stopDateTime.toDate();
         return stopDate;
     }
-    
+
     public int calculateDayValue(int duration, String unit) {
         int dayVal = 0;
         if (StringUtils.isNotBlank(unit)) {
@@ -3104,7 +3177,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return dayVal;
     }
-    
+
     public model.datapump.Obs constructObs(ResultSet rs) throws SQLException {
         model.datapump.Obs obs = new model.datapump.Obs();
         obs.setPatientID(rs.getInt("PATIENT_ID"));
@@ -3137,7 +3210,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         obs.setVoidedBy(rs.getInt("VOIDED_BY"));
         return obs;
     }
-    
+
     public ArrayList<model.datapump.Obs> getCommonQuestionsForPatient(int patientID, ArrayList<model.datapump.Obs> obsList) {
         ArrayList<model.datapump.Obs> ptsObsList = new ArrayList<model.datapump.Obs>();
         for (model.datapump.Obs obs : obsList) {
@@ -3147,7 +3220,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsObsList;
     }
-    
+
     public ArrayList<model.datapump.Visit> loadAllVisit() {
         ArrayList<model.datapump.Visit> visitList = new ArrayList<model.datapump.Visit>();
         /*String sql_text="select * from (select PATIENT_ID, PEPFAR_ID,HOSP_ID,VISIT_DATE from obs where VOIDED=0 \n" +
@@ -3191,10 +3264,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, stmt);
         }
-        
+
         return visitList;
     }
-    
+
     public ArrayList<model.datapump.Visit> loadAllVisit(Set<Integer> idSet) {
         ArrayList<model.datapump.Visit> visitList = new ArrayList<model.datapump.Visit>();
         screen.updateStatus("Loading visits ...");
@@ -3219,7 +3292,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "where encounter.patient_id in (" + buildString(idSet) + ") GROUP BY encounter.patient_id,CAST(encounter.encounter_datetime AS DATE);";*/
         String sql_text = "select DISTINCT encounter.patient_id as PATIENT_ID,CAST(encounter.encounter_datetime AS DATE) as VISIT_DATE from encounter where "
                 + "encounter.patient_id in (" + buildString(idSet) + ") and encounter.voided=0 GROUP BY encounter.patient_id,CAST(encounter.encounter_datetime AS DATE) ORDER BY encounter.patient_id,encounter.encounter_datetime  ";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         model.datapump.Visit visit = null;
@@ -3242,10 +3315,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, stmt);
         }
-        
+
         return visitList;
     }
-    
+
     public model.datapump.Visit constructVisit(ResultSet rs) throws SQLException {
         model.datapump.Visit vs = new model.datapump.Visit();
         String visitID = "";
@@ -3257,7 +3330,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         vs.setVisitID(visitID);
         return vs;
     }
-    
+
     public model.datapump.Visit constructVisit2(ResultSet rs) throws SQLException {
         model.datapump.Visit vs = new model.datapump.Visit();
         String visitID = "";
@@ -3269,17 +3342,17 @@ public class DataPumpDao implements model.datapump.DataAccess {
         vs.setVisitID(visitID);
         return vs;
     }
-    
+
     public ArrayList<model.datapump.Obs> getCommonQuestionObs() {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         screen.updateStatus("Loading common question obs...Pls wait");
-        
+
         String sql_text = "select obs.* from obs \n"
                 + "inner join(select obs.patient_id,obs.CONCEPT_ID,MAX(obs.VISIT_DATE) as lst_obs_dt from obs\n"
                 + "where obs.CONCEPT_ID in(859,7777871,577,859) and obs.voided=0 group by patient_id,CONCEPT_ID) sinner\n"
                 + "on(sinner.patient_id=obs.PATIENT_ID and sinner.concept_id=obs.CONCEPT_ID and obs.VISIT_DATE=sinner.lst_obs_dt)\n"
                 + "where obs.VOIDED=0";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         model.datapump.Obs obs = null;
@@ -3302,7 +3375,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public ArrayList<model.datapump.Obs> getCommonQuestionObs(Set<Integer> idSet) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         screen.updateStatus("Loading common question obs...Pls wait");
@@ -3346,7 +3419,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "     from obs where obs.voided=0 and obs.concept_id in(859,7777871,577) GROUP BY obs.person_id, obs.concept_id) \n"
                 + "	 sinner on(sinner.person_id=obs.person_id and sinner.concept_id=obs.concept_id and encounter.encounter_datetime=sinner.date_obs)\n"
                 + "	 where obs.concept_id in(859,7777871,577) and obs.voided=0 and obs.person_id in(" + buildString(idSet) + ") order by obs.person_id";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         model.datapump.Obs obs = null;
@@ -3369,7 +3442,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public ArrayList<model.datapump.Demographics> getAllPatientsInDB2(Set<Integer> idSet) {
         ArrayList<model.datapump.Demographics> patients = new ArrayList<model.datapump.Demographics>();
         screen.updateStatus("Getting patient demographics...");
@@ -3419,7 +3492,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "left join person_name pn1 on(pn1.person_id=users.person_id)\n"
                 + "left join location on(location.location_id=pid1.location_id)\n"
                 + "where patient.patient_id in(" + buildString(idSet) + ")";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         model.datapump.Demographics demo = null;
@@ -3465,10 +3538,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
         return patients;
     }
-    
+
     public StringBuilder buildString(Set<Integer> ids) {
         StringBuilder sbuilder = new StringBuilder();
         for (int ele : ids) {
@@ -3479,7 +3552,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return sbuilder;
     }
-    
+
     public void runNigeriaQualExport(Date startDate, Date endDate, File file, model.datapump.Location loc) {
         screen.updateMinMaxProgress(0, 15);
         int count = 0;
@@ -3543,7 +3616,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateProgress(15);
         screen.updateStatus("Export completed thank you");
     }
-    
+
     public void runDataPatientDemographicExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataPatientDemographics.xml file...Please wait");
         long startTime = System.currentTimeMillis();
@@ -3563,7 +3636,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String fileName = "Data PatientDemographics.xml";
         int count = 0;
         zipFileEntryNames.add(fileName);
-        
+
         try {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
@@ -3585,7 +3658,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public ArrayList<Integer> getClinicVisit3MonthsReportingPeriod(Date startDate, Date endDate, int location_id) {
         ArrayList<Integer> patients = new ArrayList<Integer>();
         String sql_text = "select DISTINCT encounter.patient_id PATIENT_ID from encounter where TIMESTAMPDIFF(MONTH,encounter.encounter_datetime,?)<=3 AND location_id=? AND VOIDED=0";
@@ -3612,7 +3685,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return patients;
     }
-    
+
     public ArrayList<Integer> getClinicVisitReportingPeriod(Date startDate, Date endDate, int location_id) {
         ArrayList<Integer> patients = new ArrayList<Integer>();
         //String sql_text = "select DISTINCT PATIENT_ID from obs where VISIT_DATE BETWEEN ? AND ? AND LOCATION_ID=? AND VOIDED=0";
@@ -3640,7 +3713,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return patients;
     }
-    
+
     public ArrayList<Integer> getHospitalizedReportingPeriod(Date startDate, Date endDate, int location_id) {
         ArrayList<Integer> patients = new ArrayList<Integer>();
         //String sql_text = "select DISTINCT PATIENT_ID from obs where VISIT_DATE BETWEEN ? AND ? AND LOCATION_ID=? AND CONCEPT_ID=45 AND VALUE_CODED=80 AND VOIDED=0";
@@ -3668,7 +3741,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return patients;
     }
-    
+
     public ArrayList<model.datapump.Obs> getAllPersonalHistoryObs(int location_id, Set<Integer> idSet) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         //String sql_text = "select DISTINCT * from obs where form_id in(19,28,29,17,1) and VOIDED=0 and LOCATION_ID=" + location_id + " AND obs.patient_id in(" + buildString(idSet) + ") and patient_id is not null GROUP BY PATIENT_ID, CONCEPT_ID ORDER BY DATE_CREATED DESC ";
@@ -3702,7 +3775,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "				and encounter.voided=0\n"
                 + "				and encounter.patient_id in(" + buildString(idSet) + ") and encounter.patient_id is not null \n"
                 + "				GROUP BY obs.person_id, obs.concept_id ORDER BY DATE_CREATED DESC\n";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         model.datapump.Obs obs = null;
@@ -3728,7 +3801,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public model.datapump.Obs constructObs2(ResultSet rs) throws SQLException {
         model.datapump.Obs obs = new model.datapump.Obs();
         int concept_id = 0, value_coded = 0;
@@ -3751,7 +3824,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             obs.setVariableValue(rs.getString("variable_value"));
         }
         enteredByUser = userDictionary.get(rs.getInt("creator"));
-        
+
         if (enteredByUser != null) {
             obs.setEnteredBy(enteredByUser.getFullName());
         }
@@ -3778,7 +3851,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         obs.setFormID(rs.getInt("form_id"));
         return obs;
     }
-    
+
     public void runDataRegimenDuringReviewPeriod(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing Data ARTRegimenDuringReviewPeriod.xml...Please wait");
         ArrayList<Integer> patientOnARTFirstDayList = null, patientOnARTAnytimeList = null;
@@ -3796,7 +3869,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
             mgr.writeXMLHeader(COMMON_HEADER, NAMES_SPACE);
-            
+
             for (DataRegimenDuringReview drr : dataRegimenDuringReviewList) {
                 mgr.writeToXML(drr);
                 count++;
@@ -3811,9 +3884,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
         }
-        
+
     }
-    
+
     public ArrayList<Date> extractVisits(int pid, List<model.datapump.Obs> obsList) {
         ArrayList<Date> dateList = new ArrayList<Date>();
         Set<Date> dateSet = new HashSet<Date>();
@@ -3821,22 +3894,22 @@ public class DataPumpDao implements model.datapump.DataAccess {
             if (ele.getPatientID() == pid && ele.getVisitDate() != null) {
                 dateSet.add(ele.getVisitDate());
             }
-            
+
         }
         dateList.addAll(dateSet);
         return dateList;
     }
-    
+
     public PatientRegimen extractRegimenForVisit(Date visitDate, int pid, List<Obs> obsList) {
         PatientRegimen regimen = new PatientRegimen();
         for (Obs obs : obsList) {
             if (obs.getPatientID() == pid && obs.getVisitDate().equals(visitDate)) {
-                
+
             }
         }
         return regimen;
     }
-    
+
     public ArrayList<Date> getVisitDatesForPatientForForms(Set<Integer> formIDSet, int patientID, Date endDate) {
         ArrayList<Date> visitDateList = new ArrayList<Date>();
         String sql_text = "select distinct encounter.encounter_datetime as visit_date "
@@ -3861,10 +3934,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return visitDateList;
     }
-    
+
     public ArrayList<model.datapump.PatientRegimen> getAllPatientRegimen(Date startDate, Date endDate, int location_id, Set<Integer> idSet) {
         screen.updateStatus("Loading patient regimen... Please wait");
-        
+
         ArrayList<model.datapump.PatientRegimen> ptsRegimenList = new ArrayList<model.datapump.PatientRegimen>();
         List<model.datapump.Obs> pharmacyFormObsList = null;
         ArrayList<Date> ptsVisitDates = null;
@@ -3883,7 +3956,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     screen.updateStatus("Regimen... " + count + " " + ptsRegimen.getRegimenName());
                     count++;
                 }
-                
+
             }
         }
         //List<Obs> pharmacyFormObsList=getObsFromPharmacyForPatient(location_id, endDate)
@@ -3913,7 +3986,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }*/
         return ptsRegimenList;
     }
-    
+
     public model.datapump.PatientRegimen constructRegimen(ResultSet rs) throws SQLException {
         model.datapump.PatientRegimen order = new model.datapump.PatientRegimen();
         int duration = 0;
@@ -3929,7 +4002,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         stopDate = calculateStopDate(order.getStartDate(), duration, duration_unit);
         //order.setStopDate(rs.getDate("STOP_DATE"));
         order.setDrugName(rs.getString("drug_name"));
-        
+
         order.setRegimenName(rs.getString("regimen"));
         order.setCode(String.valueOf(rs.getInt("regimen_code")));
         order.setRegimenLine(rs.getString("regimen_line"));
@@ -3938,14 +4011,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
         order.setCreator(rs.getInt("creator_id"));
         return order;
     }
-    
+
     public ArrayList<Integer> getPatientsOnARTAnytimeOfReviewPeriod(Date startDate, Date endDate, int location_id) {
         ArrayList<Integer> patientList = new ArrayList<Integer>();
         //String sql_text = "SELECT PATIENT_ID FROM regimen \n"
         // + "where REGIMEN_CODE is not null  AND  VISIT_DATE <= ?";
         String sql_text = "select DISTINCT encounter.patient_id from encounter inner join obs"
                 + " on(encounter.encounter_id=obs.encounter_id and encounter.voided=0) where concept_id in(7778111,7778531) and encounter.voided=0 and encounter.encounter_datetime >=? GROUP BY encounter.patient_id";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
@@ -3964,7 +4037,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return patientList;
     }
-    
+
     public ArrayList<Integer> getPatientsOnARTFirstDayOfReview(Date startDate, Date endDate, int location_id) {
         ArrayList<Integer> patientList = new ArrayList<Integer>();
         /*String sql_text = "SELECT PATIENT_ID FROM regimen \n"
@@ -3988,7 +4061,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return patientList;
     }
-    
+
     public void runDataCotrimoxazoleExport2(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataCotrimoxazoleReportingPeriod.xml...");
         //ArrayList<PatientRegimen> ptsCotrimRegimenList=getLastReceivedCotrimReviewPeriod(startDate, endDate, locationID, idSet);
@@ -4017,9 +4090,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-        
+
     }
-    
+
     public HashMap<Integer, Date> getLastReceivedCotrimReviewPeriod2(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         /* String sql_text = "select patient.person_source_pk pid,LST_CTX_DT dt from patient\n"
                 + "inner join\n"
@@ -4040,7 +4113,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         ResultSet rs = null;
         model.datapump.PatientRegimen ptsRegimen = null;
         HashMap<Integer, Date> lstCTXMap = new HashMap<Integer, Date>();
-        
+
         try {
             ps = prepareQuery(sql_text);
             ps.setDate(1, convertToSQLDate(endDate));
@@ -4058,7 +4131,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return lstCTXMap;
     }
-    
+
     public void runClinicalEvalExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataClinicalEvaluation.xml...");
         Integer[] formArr = {18, 24, 27, 20, 56};
@@ -4083,7 +4156,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 screen.updateStatus("Writing DataClinicalEvaluation.xml..." + count);
                 mgr.writeToXML(dc);
                 count++;
-                
+
             }
             mgr.endXMLDocument();
             mgr.closeXMLWriter();
@@ -4093,7 +4166,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public ArrayList<Form> getFormForPatient(Set<Integer> idSet, Set<Integer> formidSet, Date startDate, Date endDate, int locationID) {
         ArrayList<Form> formList = new ArrayList<Form>();
         /*String sql_text = "select \n"
@@ -4138,10 +4211,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
         return formList;
     }
-    
+
     public Form constructForm(ResultSet rs) throws SQLException {
         Form form = new Form();
         form.setFormID(rs.getInt("form_id"));
@@ -4154,7 +4227,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         form.setPepfarID(pepfarDictionary.get(rs.getInt("patient_id")));
         return form;
     }
-    
+
     public Form constructForm2(ResultSet rs) throws SQLException {
         Form form = new Form();
         form.setFormID(rs.getInt("FORM_ID"));
@@ -4167,7 +4240,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         form.setPepfarID(rs.getString("PEPFAR_ID"));
         return form;
     }
-    
+
     public void runDataTuberculosisRecord(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataTuberculosis.xml...");
         HashMap<Integer, model.datapump.Obs> obsTBStatusMap = null;
@@ -4205,14 +4278,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
             mgr.endXMLDocument();
             mgr.closeXMLWriter();
-            
+
         } catch (XMLStreamException ex) {
             ex.printStackTrace();
         } catch (IOException ex) {
             ex.printStackTrace();
         }
     }
-    
+
     public Set<Integer> getPatientsOnTBTreatment6MonthsBeforeRP(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         Set<Integer> tbSet = new HashSet<Integer>();
         //String sql_text = "select obs.PATIENT_ID from obs where TIMESTAMPDIFF(MONTH,VISIT_DATE,?)<=6 AND obs.CONCEPT_ID=862 AND obs.VALUE_CODED=872 AND obs.LOCATION_ID=? AND obs.PATIENT_ID IN(" + buildString(idSet) + ")";
@@ -4244,7 +4317,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 tbSet.add(pid);
                 //System.out.println("TBTreat: "+pid);
             }
-            
+
         } catch (SQLException ex) {
             ex.printStackTrace();
         } finally {
@@ -4252,7 +4325,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return tbSet;
     }
-    
+
     public Set<Integer> getPatientCXRPerformed(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         Set<Integer> ptsSet = new HashSet<Integer>();
         //String sql_text = "select obs.PATIENT_ID from obs where CONCEPT_ID=1608 AND VALUE_CODED=227 AND obs.VISIT_DATE BETWEEN ? AND ? AND obs.LOCATION_ID=? AND PATIENT_ID IN(" + buildString(idSet) + ")";
@@ -4280,12 +4353,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsSet;
     }
-    
+
     public Set<Integer> getAllPatientsWithClinicalEvalFormsFilled(Set<Integer> idSet, Date startDate, Date endDate) {
         Set<Integer> ptsWithClinicalEvalFormSet = new HashSet<Integer>();
         /*String sql_text = "select DISTINCT obs.PATIENT_ID from obs WHERE FORM_ID IN "
                 + "(24,18,27,20,47,1,6) AND obs.VISIT_DATE BETWEEN ? AND ?";*/
-        
+
         String sql_text = "select \n"
                 + "DISTINCT encounter.patient_id\n"
                 + "from \n"
@@ -4296,7 +4369,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "encounter.form_id in(24,18,27,20,47,1,6,56)\n"
                 + "and \n"
                 + "encounter.voided=0 and encounter.patient_id in (" + buildString(idSet) + ")";
-        
+
         PreparedStatement ps = prepareQuery(sql_text);
         ResultSet rs = null;
         try {
@@ -4314,7 +4387,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsWithClinicalEvalFormSet;
     }
-    
+
     public HashMap<Integer, model.datapump.Obs> getLastOfObsForPatients(Date startDate, Date endDate, int locationID, Set<Integer> idSet, int conceptID) {
         HashMap<Integer, model.datapump.Obs> obsList = new HashMap<Integer, model.datapump.Obs>();
         /*String sql_text = "SELECT * from obs \n"
@@ -4379,7 +4452,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 obsList.put(obs.getPatientID(), obs);
                 //System.out.println("Patient ID Obs: "+obs.getVariableName()+" Value: "+obs.getVariableValue());
             }
-            
+
         } catch (SQLException ex) {
             ex.printStackTrace();
         } finally {
@@ -4387,7 +4460,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public void runCareAndSupportExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataCareAndSupport.xml...");
         Set<Integer> ptsHasCandSFormSet, ptsRcvdNutriAccessRp, ptsEverRcvdNutriAccess;
@@ -4405,7 +4478,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
             mgr.writeXMLHeader(COMMON_HEADER, NAMES_SPACE);
-            
+
             for (int ele : idSet) {
                 demo = patientDemoMap.get(ele);
                 pepfarID = demo.getPepfarID();
@@ -4422,7 +4495,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public Set<Integer> getPatientsWithNutritionalAssessmentReportingPeriod(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         //String sql_text = "select obs.PATIENT_ID from obs where CONCEPT_ID IN (85,571) AND  obs.VISIT_DATE BETWEEN ? AND ? AND LOCATION_ID=? AND PATIENT_ID IN(" + buildString(idSet) + ")";
         String sql_text = "select encounter.patient_id from encounter\n"
@@ -4449,7 +4522,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsSet;
     }
-    
+
     public Set<Integer> getPatientsWithNutritionalAssessmentEver(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         Set<Integer> ptsSet = new HashSet<Integer>();
         //String sql_text = "select obs.PATIENT_ID from obs where CONCEPT_ID IN (85,571) AND  obs.VISIT_DATE <=? AND LOCATION_ID=? AND PATIENT_ID IN(" + buildString(idSet) + ")";
@@ -4479,9 +4552,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
         return ptsSet;
-        
+
     }
-    
+
     public Set<Integer> getPatientWithCandSForms(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         Set<Integer> ptsSet = new HashSet<Integer>();
         //String sql_text = "select obs.PATIENT_ID FROM obs WHERE FORM_ID IN (30,51) AND obs.VISIT_DATE BETWEEN ? AND ? AND obs.LOCATION_ID=? AND obs.PATIENT_ID IN(" + buildString(idSet) + ")";
@@ -4507,7 +4580,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsSet;
     }
-    
+
     public void runDataHepatitisB(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataHepatitisB.xml....");
         int locationID = loc.getLocationID();
@@ -4520,7 +4593,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         model.datapump.Demographics demo = null;
         String pepfarID = null;
         try {
-            
+
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
             mgr.writeXMLHeader(COMMON_HEADER, NAMES_SPACE);
@@ -4542,7 +4615,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public Set<Integer> getPatientsWithClinicalEvalFilledLastVisit(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         Set<Integer> idPtsSet = new HashSet<Integer>();
         /* String sql_text = "select obs.PATIENT_ID from obs\n"
@@ -4587,7 +4660,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return idPtsSet;
     }
-    
+
     public ArrayList<model.datapump.Obs> getHepatitisBTestReportingPeriod(Date startDate, Date endDate, int locationID, File file, Set<Integer> idSet) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         /*String sql_text = "select * from obs \n"
@@ -4628,7 +4701,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "from obs where obs.voided=0 and obs.concept_id=1157 and obs.person_id in (" + buildString(idSet) + ") GROUP BY obs.person_id, obs.concept_id)\n"
                 + "sinner on(sinner.person_id=obs.person_id and sinner.concept_id=obs.concept_id and encounter.encounter_datetime=sinner.date_obs)\n"
                 + "where obs.concept_id=1157 and obs.voided=0 and encounter.encounter_datetime between ? and ?  order by encounter.patient_id;";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         model.datapump.Obs obs = null;
@@ -4651,7 +4724,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public void runDataPatientMonitoringDuringReviewPeriod(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataPatientMonitoringReviewPeriod.xml...");
         Integer[] conceptArr = {88, 1153, 85, 860, 313, 329, 309, 7777798};
@@ -4679,7 +4752,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public ArrayList<model.datapump.Obs> getAllObsForConcepts(Set<Integer> conceptSet, Set<Integer> idSet, Date startDate, Date endDate) {
         //String sql_text = "select * from obs where PATIENT_ID IN(" + buildString(idSet) + ") and CONCEPT_ID IN (" + buildString(conceptSet) + ") AND obs.VISIT_DATE BETWEEN ? AND ?";
         String sql_text = "select \n"
@@ -4723,7 +4796,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 obs = constructObs2(rs);
                 obsList.add(obs);
             }
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -4732,7 +4805,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public void runDataPatientStatusReviewPeriod(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataPatientStatusReviewPeriod.xml...");
         Integer[] formIDArr = {29, 71};
@@ -4759,7 +4832,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public ArrayList<model.datapump.Obs> getAllObsForForm(Set<Integer> formIDSet, Set<Integer> idSet, Date startDate, Date endDate) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         //String sql_text = "select * from obs where FORM_ID IN (" + buildString(formIDSet) + ") AND PATIENT_ID IN(" + buildString(idSet) + ") AND VISIT_DATE BETWEEN ? AND ?";
@@ -4803,7 +4876,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 obs = constructObs2(rs);
                 obsList.add(obs);
             }
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -4812,7 +4885,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsList;
     }
-    
+
     public HashMap<Integer, model.datapump.Obs> getAdherenceLast3Months(Date startDate, Date endDate, int locationID, Set<Integer> idSet) {
         HashMap<Integer, model.datapump.Obs> adhMap = new HashMap<Integer, model.datapump.Obs>();
         /* String sql_text="select DISTINCT obs.* from obs \n" +
@@ -4881,7 +4954,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return adhMap;
     }
-    
+
     public void runDataARTAdherenceExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing Data ART_Adherence.xml...Please wait");
         long startTime = System.currentTimeMillis();
@@ -4905,7 +4978,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             mgr.closeXMLWriter();
             long duration = calculateDuration(startTime);
             screen.updateStatus("Writing Data ART_Adherence.xml Completed " + duration + " secs");
-            
+
         } catch (XMLStreamException ex) {
             ex.printStackTrace();
             screen.updateStatus(ex.getMessage());
@@ -4913,9 +4986,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
             screen.updateStatus(ex.getMessage());
         }
-        
+
     }
-    
+
     public HashMap<Integer, model.datapump.Obs> getAllMaxCD4Count(Set<Integer> idSet) {
         HashMap<Integer, model.datapump.Obs> obsMapList = new HashMap<Integer, model.datapump.Obs>();
         /*String sql_text = "SELECT \n"
@@ -4982,9 +5055,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
         return obsMapList;
-        
+
     }
-    
+
     public void runViralLoadTestingExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataViralLoadTesting.xml...");
         HashMap<Integer, model.datapump.Obs> vlMap = getAllViralLoadTestingReportingPeriod(startDate, endDate, loc, idSet);
@@ -4992,7 +5065,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String fileName = "DataViralLoadTesting.xml";
         int count = 0;
         zipFileEntryNames.add(fileName);
-        
+
         try {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
@@ -5011,7 +5084,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public HashMap<Integer, model.datapump.Obs> getAllViralLoadTestingReportingPeriod(Date startDate, Date endDate, model.datapump.Location loc, Set<Integer> idSet) {
         /*String sql_text = "SELECT * from obs \n"
                 + "inner join (select PATIENT_ID,CONCEPT_ID,MAX(VISIT_DATE) LST_DT FROM obs \n"
@@ -5070,7 +5143,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return obsMap;
     }
-    
+
     public void runDataARTRecordExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing Data ARTRecord.xml...Please wait");
         long startTime = System.currentTimeMillis();
@@ -5100,9 +5173,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         long duration = calculateDuration(startTime);
         screen.updateStatus("Data ARTRecord.xml completed in " + duration + " sec...Wait");
-        
+
     }
-    
+
     public void runDataBaselineParameterExport(Date startDate, Date endDate, model.datapump.Location loc, File file, Set<Integer> idSet) {
         screen.updateStatus("Writing DataBaselineParameters.xml file...Please wait");
         long startTime = System.currentTimeMillis();
@@ -5147,7 +5220,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
     }
-    
+
     public ArrayList<model.datapump.Obs> getAllBaselines(Set<Integer> idSet) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         long startTime = System.currentTimeMillis();
@@ -5221,7 +5294,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus("Baseline export completed in " + duration + "secs");
         return obsList;
     }
-    
+
     public Set<Integer> getSamplePatients(Date startDate, Date endDate, model.datapump.Location loc) {
         Set<Integer> idSet = new HashSet<Integer>();
         Set<Integer> sampleSet = new HashSet<Integer>();
@@ -5282,7 +5355,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
             rs.close();
             ps.close();*/
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -5291,7 +5364,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return sampleSet;
     }
-    
+
     public Set<Integer> getRandomPatients(Set<Integer> idSet, int n) {
         Set<Integer> sampleSet = new HashSet<Integer>();
         ArrayList<Integer> sampleList = new ArrayList<Integer>();
@@ -5308,7 +5381,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return sampleSet;
     }
-    
+
     public int getSampleSize(int patientLoad) {
         int size = 0;
         if (patientLoad <= 20) {
@@ -5348,14 +5421,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return size;
     }
-    
+
     public static int getRandom(Set<Integer> idSet) {
         ArrayList<Integer> idList = new ArrayList<Integer>();
         idList.addAll(idSet);
         int rnd = new Random().nextInt(idList.size());
         return idList.get(rnd);
     }
-    
+
     public Set<Integer> getAllPatientsInDBWithChange(Date startDate, Date endDate) {
         Set<Integer> ptsWithChange = new HashSet<Integer>();
         int count = 0;
@@ -5457,7 +5530,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ptsWithChange;
     }
-    
+
     public void runIndicatorReport(Date startDate, Date endDate, File file, int location_id) {
         FileManager mgr = new FileManager();
         int progress = 0;
@@ -5466,7 +5539,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus("Patients loaded...Please wait");
         progress++;
         screen.updateProgress(progress);
-        
+
         loadCohorts(startDate, endDate, location_id);
         screen.updateStatus("Cohorts loaded...Please wait");
         progress++;
@@ -5509,7 +5582,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String[] data = null;
         File file2 = null;
         String fileName = file.getAbsolutePath();
-        
+
         try {
             if (fileName.contains(".")) {
                 fileName = fileName.substring(0, fileName.indexOf("."));
@@ -5519,7 +5592,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             //file.renameTo(file2);
             mgr.createCSVWriter(file2.getAbsolutePath());
             data = createIndicatorData(careCurr, "CARE_CURR");
-            
+
             mgr.writeHeader(headers);
             mgr.writeToCSV(data);
             data = createIndicatorData(careNew, "CARE_NEW");
@@ -5544,9 +5617,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
         }
-        
+
     }
-    
+
     private String[] createIndicatorData(Set<Integer> cohort, String name) {
         String[] dataArr = new String[28];
         dataArr[0] = name;
@@ -5555,7 +5628,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return dataArr;
     }
-    
+
     private void loadCareCurrent(Date startDate, Date endDate, int locationID) {
         String sql_text = "select  distinct obs.person_id from obs where concept_id in (88,860,315) and obs.voided=0 and obs.location_id=? and obs.obs_datetime between ? and ?";
         PreparedStatement ps = null;
@@ -5577,7 +5650,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
     }
-    
+
     private void loadCareNew(Date startDate, Date endDate, int locationID) {
         Set<Integer> ptsSet = firstVisitDateDictionary.keySet();
         careNew = new HashSet<Integer>();
@@ -5586,21 +5659,21 @@ public class DataPumpDao implements model.datapump.DataAccess {
         DateTime endDateTime = new DateTime(endDate);
         for (Integer ele : ptsSet) {
             enrollDate = new DateTime(firstVisitDateDictionary.get(ele));
-            
+
             if ((enrollDate.isEqual(startDateTime) || enrollDate.isAfter(startDateTime)) && (enrollDate.isEqual(endDateTime) || enrollDate.isBefore(endDateTime))) {
                 careNew.add(ele);
             }
-            
+
         }
     }
-    
+
     private void loadCareCummulative(Date startDate, Date endDate, int locationID) {
         careCumm = new HashSet<Integer>();
         for (model.datapump.Demographics ele : patientDemoList) {
             careCumm.add(ele.getPatientID());
         }
     }
-    
+
     private void loadTBScrn(Date startDate, Date endDate, int locationID) {
         tbScrn = new HashSet<Integer>();
         String sql_text = "select distinct obs.person_id from obs where location_id=? and concept_id=862 and voided=0 and obs_datetime between ? and ?";
@@ -5622,7 +5695,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
     }
-    
+
     public void loadClinicVisit(Date startDate, Date endDate, int locationID) {
         ccVisit = new HashSet<Integer>();
         String sql_text = "select distinct obs.person_id from obs where location_id=? and voided=0 and obs_datetime between ? and ?";
@@ -5644,7 +5717,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
     }
-    
+
     private void loadTBTx(Date startDate, Date endDate, int locationID) {
         tbTxt = new HashSet<Integer>();
         String sql_text = "select distinct obs.person_id from obs where location_id=? and concept_id=862 and value_coded=872 and voided=0 and obs_datetime between ? and ?";
@@ -5666,7 +5739,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
     }
-    
+
     private void loadExits(Date startDate, Date endDate, int locationID) {
         exit = new HashSet<Integer>();
         String sql_text = "select obs.person_id from obs where concept_id=977 and location_id=? and voided=0 and obs_datetime between ? and ?";
@@ -5687,9 +5760,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
     }
-    
+
     private void loadTxCurr(Date startDate, Date endDate, int locationID) {
         txCurr = new HashSet<Integer>();
         /*String sql_text = "select orders.patient_id, max(orders.start_date) from orders\n"
@@ -5710,7 +5783,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         try {
             ps = prepareQuery(sql_text);
             ps.setDate(1, convertToSQLDate(endDate));
-            
+
             rs = ps.executeQuery();
             while (rs.next()) {
                 txCurr.add(rs.getInt("patient_id"));
@@ -5721,9 +5794,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
     }
-    
+
     private void loadCohorts(Date startDate, Date endDate, int locationID) {
         loadCareCurrent(startDate, endDate, locationID);
         loadCareCummulative(startDate, endDate, locationID);
@@ -5733,13 +5806,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
         loadTBScrn(startDate, endDate, locationID);
         loadTBTx(startDate, endDate, locationID);
         loadClinicVisit(startDate, endDate, locationID);
-        
+
     }
-    
+
     public void runDWHExport(Date startDate, Date endDate, File file, int location_id) {
         screen.updateMinMaxProgress(0, 9);
         long starttime = System.currentTimeMillis();
-        
+
         screen.updateStatus("DWH Export started..... Please wait...");
 
         /*String[] filesNames = {
@@ -5754,7 +5827,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //String[] filesNames = {"schema/appointment.xsd", "schema/concept.xsd", "schema/regimens.xsd", "schema/art.xsd", "schema/user.xsd", "schema/patients.xsd", "schema/obs.xsd", "schema/drugs.xsd"};
         String[] filesNames = {"schema"};
         FileOutputStream fos = null;
-        
+
         ZipOutputStream zos = null;
         File file2 = null;
         String fileName = file.getAbsolutePath();
@@ -5766,7 +5839,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             file2 = new File(fileName);
             file.renameTo(file2);
             int progress = 0;
-            runPatientRegimenDWH(startDate,endDate);
+            runPatientRegimenDWH(startDate, endDate);
             progress++;
             screen.updateProgress(progress);
             runDWHDemographics(file, location_id);
@@ -5778,7 +5851,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             runDWHDrugs(file);
             progress++;
             screen.updateProgress(progress);
-            runDWHFormByForm(file,startDate,endDate);
+            runDWHFormByForm(file, startDate, endDate);
             progress++;
             screen.updateProgress(progress);
             runDWHUsers(file);
@@ -5790,7 +5863,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             //runRelationshipExport();
             progress++;
             screen.updateProgress(progress);
-            runARTCommencementExport(file,startDate,endDate);
+            runARTCommencementExport(file, startDate, endDate);
             progress++;
             screen.updateProgress(progress);
             zipFileEntryNames.addAll(Arrays.asList(filesNames));
@@ -5808,65 +5881,67 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 ioe.printStackTrace();
                 handleException(ioe);
             }
-            
+
         }
-        
+
         long duration = calculateDuration(starttime);
         screen.updateStatus("<html><body>DWH Export completed at " + duration + "(" + (Math.round(duration / 60)) + " mins) <br> Export file: " + fileName + "</html></body>");
     }
-    public ARTCommence constructARTCommencement(Encounter enc,HashMap<Integer, Obs> obsMap ){
-                ARTCommence art = new ARTCommence();
-                Obs obs=null;
-                art.setPatientID(enc.getPatientID());
-                art.setEncounterID(enc.getEncounterID());
-                art.setFormID(enc.getFormID());
-                art.setCreatorID(enc.getCreator());
-                art.setProviderID(enc.getProviderID());
-                art.setLocationID(enc.getLocationID());
-                art.setUuid(enc.getUuid());
-                art.setPepfarID(pepfarDictionary.get(enc.getPatientID()));
-                art.setHospID(hospIDDictionary.get(enc.getPatientID()));
-                art.setVisitDate(enc.getEncounterDate());
-                art.setPmmForm(formNamesDictionary.get(enc.getFormID()));
-                art.setLocation(locationDictionary.get(enc.getLocationID()));
-                User usr=userDictionary.get(enc.getCreator());
-                if(usr!=null){
-                     art.setEnteredBy(usr.getFullName());
-                     art.setDateEntered(enc.getDateCreated());
-                }
-                PersonName personName=namesDictionary.get(enc.getProviderID());
-                if(personName!=null){
-                     art.setProviderName(personName.getFullName());
-                }
-                
-                art.setDateMedicallyEligible(getValueDate(1703, obsMap));
-                art.setWhyEligible(getValueStringOrCoded(1731, obsMap));
-                art.setDateInitialAdherenceCouncelingCompleted(getValueDate(7777862, obsMap));
-                art.setDateTransferedIn(getValueDate(978, obsMap));
-                art.setFacilityTransferredFrom(getValueStringOrCoded(1732, obsMap));
-                art.setFirstRegimenLine(getValueStringOrCoded(7778531, obsMap));
-                art.setFirstLineRegimen(getValueStringOrCoded(7778532, obsMap));
-                art.setSecondLineRegimen(getValueStringOrCoded(7778533, obsMap));
-                art.setOtherRegimen(getValueStringOrCoded(7778534, obsMap));
-                art.setDateARTStarted(getValueDate(863, obsMap));
-                Person person=personDictionary.get(enc.getPatientID());
-                Date dob=null;
-                if(person!=null && art.getDateARTStarted()!=null){
-                    dob=person.getBirthDate();
-                    DateTime d1=new DateTime(dob);
-                    DateTime d2=new DateTime(art.getDateARTStarted());
-                    Years yrs=Years.yearsBetween(d1, d2);
-                    art.setAgeARTStart(yrs.getYears());
-                }
-                art.setClinicalStageAtARTStart(getValueStringOrCoded(7778529, obsMap));
-                art.setWeight(getValueNumeric(1734, obsMap));
-                art.setHeight(getValueNumeric(1735, obsMap));
-                art.setFunctionalStatus(getValueStringOrCoded(7778530, obsMap));
-                art.setCd4CountAtARTStart(getValueNumeric(1735, obsMap));
-                art.setArtRegisterSerialNo(getValueStringOrCoded(7778291, obsMap));
-                return art;
+
+    public ARTCommence constructARTCommencement(Encounter enc, HashMap<Integer, Obs> obsMap) {
+        ARTCommence art = new ARTCommence();
+        Obs obs = null;
+        art.setPatientID(enc.getPatientID());
+        art.setEncounterID(enc.getEncounterID());
+        art.setFormID(enc.getFormID());
+        art.setCreatorID(enc.getCreator());
+        art.setProviderID(enc.getProviderID());
+        art.setLocationID(enc.getLocationID());
+        art.setUuid(enc.getUuid());
+        art.setPepfarID(pepfarDictionary.get(enc.getPatientID()));
+        art.setHospID(hospIDDictionary.get(enc.getPatientID()));
+        art.setVisitDate(enc.getEncounterDate());
+        art.setPmmForm(formNamesDictionary.get(enc.getFormID()));
+        art.setLocation(locationDictionary.get(enc.getLocationID()));
+        User usr = userDictionary.get(enc.getCreator());
+        if (usr != null) {
+            art.setEnteredBy(usr.getFullName());
+            art.setDateEntered(enc.getDateCreated());
+        }
+        PersonName personName = namesDictionary.get(enc.getProviderID());
+        if (personName != null) {
+            art.setProviderName(personName.getFullName());
+        }
+
+        art.setDateMedicallyEligible(getValueDate(1703, obsMap));
+        art.setWhyEligible(getValueStringOrCoded(1731, obsMap));
+        art.setDateInitialAdherenceCouncelingCompleted(getValueDate(7777862, obsMap));
+        art.setDateTransferedIn(getValueDate(978, obsMap));
+        art.setFacilityTransferredFrom(getValueStringOrCoded(1732, obsMap));
+        art.setFirstRegimenLine(getValueStringOrCoded(7778531, obsMap));
+        art.setFirstLineRegimen(getValueStringOrCoded(7778532, obsMap));
+        art.setSecondLineRegimen(getValueStringOrCoded(7778533, obsMap));
+        art.setOtherRegimen(getValueStringOrCoded(7778534, obsMap));
+        art.setDateARTStarted(getValueDate(863, obsMap));
+        Person person = personDictionary.get(enc.getPatientID());
+        Date dob = null;
+        if (person != null && art.getDateARTStarted() != null) {
+            dob = person.getBirthDate();
+            DateTime d1 = new DateTime(dob);
+            DateTime d2 = new DateTime(art.getDateARTStarted());
+            Years yrs = Years.yearsBetween(d1, d2);
+            art.setAgeARTStart(yrs.getYears());
+        }
+        art.setClinicalStageAtARTStart(getValueStringOrCoded(7778529, obsMap));
+        art.setWeight(getValueNumeric(1734, obsMap));
+        art.setHeight(getValueNumeric(1735, obsMap));
+        art.setFunctionalStatus(getValueStringOrCoded(7778530, obsMap));
+        art.setCd4CountAtARTStart(getValueNumeric(1735, obsMap));
+        art.setArtRegisterSerialNo(getValueStringOrCoded(7778291, obsMap));
+        return art;
     }
-    public void runARTCommencementExport(File file,Date startDate,Date endDate) {
+
+    public void runARTCommencementExport(File file, Date startDate, Date endDate) {
         /*String sql_text = "select \n"
                 + "   obs.person_id as patient_id,\n"
                 + "   pid1.identifier as pepfar_id,\n"
@@ -5919,9 +5994,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         Set<Integer> idSet = new HashSet<Integer>(Arrays.asList(formIDArr));
         ArrayList<Encounter> encList = getEncounterForDate(startDate, endDate, idSet);
         HashMap<Integer, Obs> obsMap = new HashMap<Integer, Obs>();
-        
+
         screen.updateStatus("Writing art.xml....Please wait");
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         ARTCommence art = null;
@@ -5929,14 +6004,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
         PersonName pn1 = null;
         int count = 0;
         zipFileEntryNames.add(fileName);
-        
+
         try {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
             mgr.writeXMLHeader("artcommencement", "schema/art.xsd");
-            for(Encounter enc: encList){
+            for (Encounter enc : encList) {
                 obsMap = getObsForEncounter(enc.getEncounterID());
-                art=constructARTCommencement(enc, obsMap);
+                art = constructARTCommencement(enc, obsMap);
                 mgr.writeToXML(art);
                 count++;
                 screen.updateStatus("Writing art.xml...Please wait " + count);
@@ -5990,14 +6065,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
             //rs.close();
             //stmt.close();
             mgr.closeXMLWriter();
-        }catch (XMLStreamException xe) {
+        } catch (XMLStreamException xe) {
             handleException(xe);
         } catch (IOException ioe) {
             handleException(ioe);
         }
-        
+
     }
-    
+
     public void runCareCardFollowUpExport(File file) {
         String sql_text = "select \n"
                 + "   obs.person_id as patientID,\n"
@@ -6068,9 +6143,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "left join concept_name cn1 on(cn1.concept_id=obs.value_coded and cn1.locale='en' and cn1.locale_preferred=1)\n"
                 + "where encounter.form_id in (56,24,18,27,20,47) and encounter.voided=0\n"
                 + "GROUP BY  obs.person_id, obs.encounter_id order by obs.person_id asc,encounter.encounter_datetime desc;";
-        
+
         screen.updateStatus("Writing carecardfollowup.xml....Please wait");
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         CareCardFollowUp card = null;
@@ -6156,27 +6231,27 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } catch (IOException ioe) {
             handleException(ioe);
         }
-        
+
     }
-    
+
     public void runPharmacyExport(File file) {
         String sql_text = "";
     }
-    
+
     public void handleException(Exception e) {
         screen.updateStatus(e.getMessage());
         e.printStackTrace();
     }
-    
+
     public void addToSpecialZipEncrypt(ArrayList<String> fileNames, String zipfile) {
         ArrayList fileList = new ArrayList();
         for (String f : fileNames) {
             CompressUtil.zip(f, zipfile, "HMISPass1word");
             screen.updateStatus(f + " has been added to zip");
         }
-        
+
     }
-    
+
     public void clearFiles(ArrayList<String> fileNames, List<String> exceptNames) {
         File fe;
         for (String fileName : fileNames) {
@@ -6189,7 +6264,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         fileNames.clear();
     }
-    
+
     public void addToSpecialZip(ArrayList<String> fileNames, String zipfile) {
         ArrayList fileList = new ArrayList();
         for (String f : fileNames) {
@@ -6204,9 +6279,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
         }
         fileNames.clear();
-        
+
     }
-    
+
     public void runRelationshipExport() {
         screen.updateStatus("Writing relationship.xml....Please wait");
         String sql_text = "select \n"
@@ -6233,7 +6308,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String fileName = "relationship.xml";
         PersonName pn1 = null;
         zipFileEntryNames.add(fileName);
-        
+
         try {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
@@ -6278,7 +6353,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             mgr.closeXMLWriter();
             stmt.close();
             rs.close();
-            
+
         } catch (SQLException ex) {
             ex.printStackTrace();
         } catch (XMLStreamException ex) {
@@ -6296,9 +6371,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 screen.updateStatus(ex.getMessage());
             }
         }
-        
+
     }
-    
+
     public void runDWHDemographics(File file, int location_id) {
         String sql_text = "select \n"
                 + "                         patient.patient_id, person.person_id person_source_pk ,\n"
@@ -6312,7 +6387,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "                        DATE_FORMAT(person.date_changed,'%Y-%m-%d %H:%i:%s') date_changed \n"
                 + "                         from patient inner join person on(patient.patient_id=person.person_id and patient.voided=0)  \n"
                 + "                        order by person_source_pk asc";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         try {
@@ -6320,7 +6395,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     java.sql.ResultSet.CONCUR_READ_ONLY);
             stmt.setFetchSize(Integer.MIN_VALUE);
             rs = stmt.executeQuery(sql_text);
-            
+
             int person_id = -1;
             int creator_id = -1;
             int count = 0;
@@ -6355,7 +6430,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 "creator",
                 "location"
             };
-            
+
             String demofileName = "demographics.xml";
             File demofile = new File(demofileName);
             Demographics pts = null;
@@ -6417,7 +6492,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 pts.setDateChanged(rs.getDate("date_changed"));
                 pts.setLocationID(location_id);
                 pts.setLocationName(String.valueOf(idLocationDictionary.get(person_id)));
-                
+
                 creator_id = rs.getInt("creator_id");
                 usr = userDictionary.get(creator_id);
                 if (usr != null) {
@@ -6451,13 +6526,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 };
                 mgr.closeXMLWriter();
             } catch (Exception ex) {
-                
+
                 ex.printStackTrace();
             }
         }
-        
+
     }
-    
+
     public void loadLastARTPickupDate2() {
         lastARTPickupDateDictionary = new HashMap<Integer, Date>();
         String sql_text = "select orders.patient_id,max(orders.start_date) as lst_art_dt from orders where orders.concept_id in"
@@ -6484,7 +6559,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public void loadLastARTPickupDate() {
         lastARTPickupDateDictionary = new HashMap<Integer, Date>();
         String sql_text = "select obs.person_id, max(obs.obs_datetime) as lst_art_dt from obs where obs.concept_id=7778111 and obs.value_coded in (7778108,7778109) and obs.voided=0 GROUP BY obs.person_id";
@@ -6507,10 +6582,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public void runDictionaryDWHExport() {
         screen.updateStatus("Exporting data dictionary....");
-        
+
         Concept concept = null;
         String fileName = "concept.xml";
         int count = 0;
@@ -6523,7 +6598,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         try {
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
-            
+
             mgr.writeXMLHeader("concepts", "schema/concept.xsd");
             zipFileEntryNames.add(fileName);
             rs = ps.executeQuery();
@@ -6538,7 +6613,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 mgr.writeToXML(concept);
                 count++;
                 screen.updateStatus("Exporting concept.xml " + count);
-                
+
             }
             //screen.updateProgress(size);
             mgr.endXMLDocument();
@@ -6555,9 +6630,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
     }
-    
+
     public void runDWHDrugs2(File file) {
         screen.updateStatus("drugs.xml export started...Please wait");
         String sql_text = "select\n"
@@ -6584,7 +6659,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "inner join drug on(drug.drug_id=drug_order.drug_inventory_id)\n"
                 + "inner join patient on(patient.patient_id=orders.patient_id)\n"
                 + "ORDER BY patient_id asc ,orders.start_date asc;";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         DrugOrder ord = null;
@@ -6593,7 +6668,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         int count = 0;
         String drugfileName = "drugs.xml";
         File drugfile = new File(drugfileName);
-        
+
         try {
             stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
                     java.sql.ResultSet.CONCUR_READ_ONLY);
@@ -6637,7 +6712,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             rs.close();
             stmt.close();
             mgr.closeXMLWriter();
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
         } catch (XMLStreamException ex) {
@@ -6648,7 +6723,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public void runDWHDrugs(File file) {
         screen.updateStatus("drugs.xml export started...Please wait");
         //System.out.println("i don start");
@@ -6722,7 +6797,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "where encounter.form_id in(46,53,86)  and obs_group_id is not null\n"
                 + "\n"
                 + "GROUP BY obs.person_id,encounter.encounter_id,obs.obs_group_id ";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         Drug ord = null;
@@ -6731,7 +6806,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         int count = 0;
         String drugfileName = "drugs.xml";
         File drugfile = new File(drugfileName);
-        
+
         try {
             stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
                     java.sql.ResultSet.CONCUR_READ_ONLY);
@@ -6781,7 +6856,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             rs.close();
             stmt.close();
             mgr.closeXMLWriter();
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -6796,7 +6871,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         //System.out.println("i don finish");
     }
-    
+
     public void runLabExport(Date startDate, Date endDate, int locationID, File file) {
         screen.updateStatus("Writing " + file.getName() + " file.....Please wait");
         String sql_text = "select \n"
@@ -6859,7 +6934,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     if (c != null) {
                         obs.setVariableValue(c.getConceptName());
                     }
-                    
+
                 } else {
                     obs.setVariableValue(rs.getString("variable_value"));
                 }
@@ -6875,7 +6950,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     obs.setProvider(namesDictionary.get(prs.getPerson_id()).getFullName());
                 }
                 obs.setDateEntered(rs.getDate("date_created"));
-                
+
                 obs.setUuid(rs.getString("uuid"));
                 obs.setLocationID(rs.getInt("location_id"));
                 obs.setLocationName(locationDictionary.get(rs.getInt("location_id")));
@@ -6899,9 +6974,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, stmt);
         }
-        
+
     }
-    
+
     public void runDWHAppointments(File file) {
         screen.updateStatus("Writing Appointment xml file.....Please wait.");
         String sql_text = "select \n"
@@ -6971,7 +7046,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 if (pn != null) {
                     apt.setProviderName(pn.getFullName());
                 }
-                
+
                 apt.setAppointmentDate(rs.getDate("appointment_date"));
                 apt.setPhoneNumber(rs.getString("phone_number"));
                 apt.setEmail(rs.getString("email"));
@@ -6983,14 +7058,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 count++;
                 mgr.writeToXML(apt);
                 screen.updateStatus("Writing Appointment.xml....Please wait " + count);
-                
+
             }
             screen.updateStatus("Appointment.xml file completed");
             mgr.endXMLDocument();
             mgr.closeXMLWriter();
             rs.close();
             stmt.close();
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -7004,7 +7079,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public void cleanUp(ResultSet rs, Statement stmt) {
         try {
             if (rs != null) {
@@ -7016,9 +7091,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
-        
+
     }
-    
+
     private void loadARTStartDates() {
         artStartDateDictionary = new HashMap<Integer, Date>();
         screen.updateStatus("Loading ART Date Dictionary...Please wait");
@@ -7042,9 +7117,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
     }
-    
+
     public String codeDrugs(String drugName) {
-        
+
         String codedName = "";
         drugName = drugName.toUpperCase();
         if (drugName != null && !drugName.isEmpty()) {
@@ -7093,11 +7168,11 @@ public class DataPumpDao implements model.datapump.DataAccess {
             if (codedName.endsWith("/")) {
                 codedName = codedName.substring(0, codedName.length() - 1);
             }
-            
+
         }
         return sortRegimen(codedName);
     }
-    
+
     public boolean isPresent(String regimenList, String drugCode) {
         boolean ans = false;
         String[] drugs = regimenList.split("/");
@@ -7106,7 +7181,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-    
+
     public static boolean isEquivalent(String code1, String code2) {
         boolean ans = false;
         String[] arr1 = code1.split("/");
@@ -7114,15 +7189,15 @@ public class DataPumpDao implements model.datapump.DataAccess {
         Arrays.sort(arr1);
         Arrays.sort(arr2);
         return Arrays.equals(arr1, arr2);
-        
+
     }
-    
+
     public static String sortRegimen(String code) {
         String[] codeArr = code.split("/");
         Arrays.sort(codeArr);
         return StringUtils.join(codeArr, "/");
     }
-    
+
     public void loadMaps() {
         map1 = new HashMap<String, Integer>();
         map1.put("NVP/AZT/3TC", 1);
@@ -7175,9 +7250,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         map1.put("AZT/3TC/TDF", 10);
         map1.put("SQVr/D4T/3TC", 26);
         map1.put("SQVr/ABC/TDF", 26);
-        
+
     }
-    
+
     public int getCode(String codedDrug) {
         int code = -1;
         Set<String> set = map1.keySet();
@@ -7188,10 +7263,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return code;
     }
-    
+
     public boolean isARV(String drugName) {
         boolean ans = false;
-        int[] arvConceptArr = {
+        /*int[] arvConceptArr = {
             17, 18, 23, 952, 953, 954, 955,
             956, 957, 958, 959, 960, 1184,
             1185, 1186, 1187, 1188, 1189,
@@ -7200,7 +7275,18 @@ public class DataPumpDao implements model.datapump.DataAccess {
             1226, 1227, 1228, 1229, 1230,
             1231, 1232, 1233, 1234, 1235,
             1237, 1238, 1528, 7777748, 7777749,
-            7777751};
+            7777751};*/
+        int[] arvConceptArr
+                = {960, 953, 959, 952, 962, 18,
+                    1187, 961, 957, 1190, 956,
+                    955, 958, 1221, 1222, 1224,
+                    1225, 1227, 1228, 1533, 23,
+                    1189, 1186, 1188, 1184, 17,
+                    954, 1185, 1235, 1236, 1237,
+                    7778159, 1219, 1232, 1223,
+                    1233, 1234, 1229, 1226, 1230,
+                    1231, 7778592, 7778594, 7778595,
+                    7778597, 7778598};
         String name = "";
         for (int ele : arvConceptArr) {
             name = drugDictionary.get(ele);
@@ -7211,7 +7297,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-    
+
     public String getRegimenLine(String codedDrug) {
         String line = "";
         if (codedDrug.contains("LPVr") || codedDrug.contains("SQVr") || codedDrug.contains("IDVr") || codedDrug.contains("DDI") || codedDrug.contains("ATVr")) {
@@ -7221,7 +7307,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return line;
     }
-    
+
     public boolean containsAll(String[] darr, String codedDrugNames) {
         boolean ans = true;
         for (String ele : darr) {
@@ -7230,9 +7316,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
         }
         return ans;
-        
+
     }
-    
+
     public int getPatientRegimenSize(Date startDate, Date endDate) {
         String sql_text = "select  count(distinct  start_date,patient_id)  as num_rows from orders"
                 + " where voided=0 and orders.start_date between ? and ? "
@@ -7253,7 +7339,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ps.setDate(1, convertToSQLDate(startDate));
             ps.setDate(2, convertToSQLDate(endDate));
             rs = ps.executeQuery();
-            
+
             while (rs.next()) {
                 size = rs.getInt("num_rows");
             }
@@ -7263,9 +7349,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         }
         return size;
-        
+
     }
-    
+
     public double getValueNumeric(int conceptID, HashMap<Integer, Obs> obsMap) {
         double ans = 0.0;
         Obs obs = null;
@@ -7275,7 +7361,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-    
+
     public Date getValueDate(int conceptID, HashMap<Integer, Obs> obsMap) {
         Date dateVal = null;
         Obs obs = null;
@@ -7285,7 +7371,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return dateVal;
     }
-    
+
     public String getValueStringOrCoded(int conceptID, HashMap<Integer, Obs> obsMap) {
         String val = null;
         Obs obs = null;
@@ -7295,7 +7381,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return val;
     }
-    
+
     public Regimen constructRegimen(Encounter enc, HashMap<Integer, Obs> obsMap) {
         Regimen regimen = new Regimen();
         regimen.setPatientID(enc.getPatientID());
@@ -7311,13 +7397,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
         regimen.setPmmForm(formNamesDictionary.get(enc.getFormID()));
         regimen.setEnteredBy(userDictionary.get(enc.getCreator()).getFullName());
         regimen.setUuid(enc.getUuid());
-        User usr=userDictionary.get(enc.getProviderID());
-        String providerName="";
-        if(usr!=null){
-            providerName=usr.getFullName();
+        User usr = userDictionary.get(enc.getProviderID());
+        String providerName = "";
+        if (usr != null) {
+            providerName = usr.getFullName();
             regimen.setProvider(providerName);
         }
-       
+
         regimen.setDateEntered(enc.getDateCreated());
         regimen.setDateChanged(enc.getDateChanged());
         regimen.setVisitType(getValueStringOrCoded(1537, obsMap));
@@ -7340,7 +7426,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         regimen.setRegimenCode(getCode(regimenStr));
         return regimen;
     }
-    
+
     public void runPatientRegimenDWH(Date startDate, Date endDate) {
         screen.updateStatus("Writing regimens.xml....Please wait");
         Integer[] formIDArr = {46, 53, 86};
@@ -7362,8 +7448,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 screen.updateStatus("regimen.xml...Please wait" + count);
                 count++;
             }
-             mgr.endXMLDocument();
-             mgr.closeXMLWriter();
+            mgr.endXMLDocument();
+            mgr.closeXMLWriter();
         } catch (IOException ex) {
             ex.printStackTrace();
             screen.showError(ex.getMessage());
@@ -7492,12 +7578,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, stmt);
         }*/
-        
+
     }
-    
+
     public void runPatientRegimenDWH2() {
         screen.updateStatus("Writing regimens.xml....Please wait");
-        
+
         String sql_text = "select\n"
                 + "                orders.order_id,\n"
                 + "                orders.patient_id,\n"
@@ -7529,18 +7615,18 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String regimenCode = "";
         String[] headers = {"PATIENT_ID", "PEPFAR_ID", "HOSP_ID", "START_DATE", "STOP_DATE", "DRUGS", "REGIMEN", "REGIMENLINE", "ENTERED_BY", "DATE_ENTERED", "CREATOR_ID"};
         try {
-            
+
             String fileName = "regimen.xml";
             mgr.createXMLWriter(fileName);
             mgr.openXMLDocument();
-            
+
             mgr.writeXMLHeader("regimens");
-            
+
             zipFileEntryNames.add(fileName);
-            
+
             PreparedStatement ps = prepareQuery(sql_text);
             rs = ps.executeQuery();
-            
+
             while (rs.next()) {
                 order = new PatientRegimen();
                 patient_id = rs.getInt("patient_id");
@@ -7551,9 +7637,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 order.setStartDate(rs.getDate("start_date"));
                 order.setStopDate(rs.getDate("discontinued_date"));
                 drugName = rs.getString("regimen_name");
-                
+
                 if (drugName != null && !drugName.isEmpty()) {
-                    
+
                     regimenCode = codeDrugs(drugName);
                     order.setRegimenName(regimenCode);
                     order.setDrugName(drugName);
@@ -7568,15 +7654,15 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     order.setEnteredBy(usr.getFullName());
                 }
                 order.setDateEntered(rs.getDate("date_created"));
-                
+
                 order.setCreator(creator_id);
 
                 //mgr.writeToXML(order);
                 count++;
                 screen.updateStatus("Writing regimen.xml...Please wait " + count);
-                
+
             }
-            
+
             ps.close();
             rs.close();
             mgr.endXMLDocument();
@@ -7594,9 +7680,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, stmt);
         }
-        
+
     }
-    
+
     public String getConceptNames(String ids) {
         String names = "";
         String[] idNoStr = null;
@@ -7608,7 +7694,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             for (int i = 0; i < idNoStr.length; i++) {
                 idNo[i] = Integer.parseInt(idNoStr[i]);
             }
-            
+
             for (int ele : idNo) {
                 conceptName = conceptDictionary.get(ele).getConceptName();
                 names += conceptName + "/";
@@ -7619,10 +7705,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return names;
     }
-    
+
     public void exportPatientRegimenCSV(Date startDate, Date endDate, int location_id, File file) {
         screen.updateStatus("Writing " + file.getName() + " ...Please wait");
-        
+
         String sql_text = "select\n"
                 + "orders.order_id,\n"
                 + "orders.patient_id,\n"
@@ -7639,7 +7725,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "inner join patient on(patient.patient_id=orders.patient_id and patient.voided=0)\n"
                 + "where orders.voided=0 and orders.start_date between Date('" + formatDate2(convertToSQLDate(startDate)) + "') and Date('" + formatDate2(convertToSQLDate(endDate)) + "') \n"
                 + "GROUP BY orders.patient_id, orders.start_date ORDER BY patient_id asc ,orders.start_date ;";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         PatientRegimen order = null;
@@ -7649,7 +7735,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         int count = 0;
         int num_rows = 0;
         String drugConceptIDs = "";
-        
+
         String drugName = "";
         String regimenCode = "";
         String[] headers = {"ORDER_ID", "PATIENT_ID", "PEPFAR_ID", "HOSP_ID", "START_DATE", "STOP_DATE", "DRUGS", "REGIMEN", "REGIMEN_CODE", "REGIMENLINE", "ENTERED_BY", "DATE_ENTERED", "CREATOR_ID"};
@@ -7657,12 +7743,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
             stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
                     java.sql.ResultSet.CONCUR_READ_ONLY);
             stmt.setFetchSize(Integer.MIN_VALUE);
-            
+
             mgr.createCSVWriter(file.getAbsolutePath());
             mgr.writeCSVHeaders(headers);
-            
+
             rs = stmt.executeQuery(sql_text);
-            
+
             screen.setState(true);
             while (rs.next()) {
                 order = new PatientRegimen();
@@ -7689,20 +7775,20 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     order.setEnteredBy(usr.getFullName());
                 }
                 order.setDateEntered(rs.getDate("date_created"));
-                
+
                 order.setCreator(creator_id);
 
                 //mgr.writeToCSV(order);
                 count++;
                 screen.updateStatus("Writing " + file.getName() + "...Please wait " + count);
-                
+
             }
-            
+
             screen.setState(false);
             screen.updateProgress(100);
             stmt.close();
             rs.close();
-            
+
             mgr.closeCSVWriter();
             screen.updateStatus("Export to " + file.getName() + " Completed thanks");
         } catch (SQLException ex) {
@@ -7714,15 +7800,15 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, stmt);
         }
-        
+
     }
-    
+
     public java.sql.Date convertToSQLDate(java.util.Date olddate) {
         java.sql.Date sqlDate = new java.sql.Date(olddate.getTime());
         return sqlDate;
     }
-    
-    public void runDWHFormByForm(File file,Date startDate,Date endDate) {
+
+    public void runDWHFormByForm(File file, Date startDate, Date endDate) {
         screen.updateStatus("Form by form xml export started...please wait");
         String sql_text = " select \n"
                 + "`obs`.`obs_id`,\n"
@@ -7749,15 +7835,15 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "`encounter`.`provider_id` AS `provider_id`,\n"
                 + "`obs`.`location_id` AS `location_id` \n"
                 + "from `obs` inner join `patient` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
-                + " inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`) where (encounter.encounter_datetime BETWEEN '"+convertToSQLDate(startDate)+"' AND '"+convertToSQLDate(endDate)+"') OR (encounter.date_created BETWEEN '"+convertToSQLDate(startDate)+"' AND '"+convertToSQLDate(endDate)+"')";
-        
+                + " inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`) where (encounter.encounter_datetime BETWEEN '" + convertToSQLDate(startDate) + "' AND '" + convertToSQLDate(endDate) + "') OR (encounter.date_created BETWEEN '" + convertToSQLDate(startDate) + "' AND '" + convertToSQLDate(endDate) + "')";
+
         Statement stmt = null;
         ResultSet rs = null;
         try {
             stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
                     java.sql.ResultSet.CONCUR_READ_ONLY);
             stmt.setFetchSize(Integer.MIN_VALUE);
-            
+
             String[] data = new String[17];
             String obsfileName = "obs.xml";
             File obsfile = new File(obsfileName);
@@ -7795,7 +7881,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 "VOIDED_BY",
                 "CHANGED_BY",
                 "FORM_ID",};
-            
+
             int count = 0;
             int concept_id = -1;
             User enteredByUser = null;
@@ -7872,20 +7958,20 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
         } finally {
             cleanUp(rs, stmt);
-            
+
         }
     }
-    
+
     static public boolean isNotNullInteger(ResultSet rs, String strColName) throws SQLException {
         boolean ans = true;
         int nValue = rs.getInt(strColName);
         if (rs.wasNull()) {
             ans = false;
         }
-        
+
         return ans;
     }
-    
+
     public void runDWHUsers(File file) {
         screen.updateStatus("Writing users.xml file.....Please wait");
         String sql_text = "select \n"
@@ -7910,7 +7996,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     java.sql.ResultSet.CONCUR_READ_ONLY);
             stmt.setFetchSize(Integer.MIN_VALUE);
             rs = stmt.executeQuery(sql_text);
-            
+
             String userfileName = "users.xml";
             File userfile = new File(userfileName);
             mgr.createXMLWriter(userfileName);
@@ -7931,7 +8017,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 "retired",
                 "retired_by"
             };
-            
+
             int count = 0;
             User usr = null;
             while (rs.next()) {
@@ -7952,14 +8038,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 count++;
                 screen.updateStatus("Writing users.xml file...Please wait " + count);
                 mgr.writeToXML(usr);
-                
+
             }
             mgr.endXMLDocument();
             rs.close();
             stmt.close();
             screen.updateStatus("User export completed.....Please wait");
             mgr.closeXMLWriter();
-            
+
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
@@ -7973,7 +8059,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public Set<Date> getVisitsForPatient(int patient_id, Date startDate, Date endDate, int locationID) {
         Set<Date> dateSet = new HashSet<Date>();
         String sql_text = "select distinct sinner.patient_id, sinner.visit_date from (\n"
@@ -8006,7 +8092,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return dateSet;
     }
-    
+
     public Encounter constructEncounter(ResultSet rs) throws SQLException {
         Encounter enc = new Encounter();
         enc.setEncounterID(rs.getInt("encounter_id"));
@@ -8025,13 +8111,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
         enc.setUuid(rs.getString("uuid"));
         enc.setChangedBy(rs.getInt("changed_by"));
         enc.setDateChanged(rs.getDate("date_changed"));
-        
+
         return enc;
     }
-    
+
     public HashMap<Integer, Obs> getObsForEncounter(int encounterID) {
         HashMap<Integer, Obs> obsMap = new HashMap<Integer, Obs>();
-         String sql_text = " select \n"
+        String sql_text = " select \n"
                 + "`obs`.`obs_id`,\n"
                 + "`obs`.`person_id`,\n"
                 + "`obs`.`obs_datetime`,\n"
@@ -8057,9 +8143,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "`obs`.`location_id` AS `location_id` \n"
                 + "from `obs` inner join `patient` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
                 + " inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id` and `encounter`.`voided` = 0  and `obs`.`voided` = 0) \n"
-                + "where  `obs`.`voided` = 0  and obs.encounter_id='"+encounterID+"'\n"
+                + "where  `obs`.`voided` = 0  and obs.encounter_id='" + encounterID + "'\n"
                 + " order by `patient`.`patient_id`,encounter.encounter_datetime,encounter.encounter_id,`obs`.`obs_group_id`,`encounter`.`form_id`";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         Obs obs = null;
@@ -8075,33 +8161,33 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
             rs.close();
             stmt.close();
-            
+
         } catch (SQLException ex) {
             handleException(ex);
-        }finally{
+        } finally {
             cleanUp(rs, stmt);
         }
         return obsMap;
     }
-    
+
     public ArrayList<model.Encounter> getEncounterForDate(Date startDate, Date endDate, Set<Integer> formIDs) {
         ArrayList<Encounter> encounterList = new ArrayList<Encounter>();
-        String sql_text = "select * from encounter where form_id in("+buildString(formIDs)+") and voided=0";
-       
+        String sql_text = "select * from encounter where form_id in(" + buildString(formIDs) + ") and voided=0";
+
         Statement stmt = null;
         ResultSet rs = null;
         Encounter enc = null;
         try {
             stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
                     java.sql.ResultSet.CONCUR_READ_ONLY);
-                    //ps.setDate(1, convertToSQLDate(startDate));
-                    //ps.setDate(2, convertToSQLDate(endDate));
+            //ps.setDate(1, convertToSQLDate(startDate));
+            //ps.setDate(2, convertToSQLDate(endDate));
             stmt.setFetchSize(Integer.MIN_VALUE);
             rs = stmt.executeQuery(sql_text);
             while (rs.next()) {
                 enc = constructEncounter(rs);
                 encounterList.add(enc);
-                System.out.println("EncounterID "+enc.getEncounterID());
+                System.out.println("EncounterID " + enc.getEncounterID());
             }
             rs.close();
             stmt.close();
@@ -8112,10 +8198,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return encounterList;
     }
-    
+
     public HashMap<Integer, Obs> getObsForPatientForDate(int patientID, Date visitDate, int locationID) {
         HashMap<Integer, Obs> map = new HashMap<Integer, Obs>();
-        
+
         String sql_text = " select \n"
                 + "`obs`.`obs_id`,\n"
                 + "`obs`.`person_id`,\n"
@@ -8144,7 +8230,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + " inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id` and `encounter`.`voided` = 0  and `obs`.`voided` = 0) \n"
                 + "where  `obs`.`voided` = 0 and obs.person_id=? and obs.obs_datetime=? and obs.location_id=? \n"
                 + " order by `patient`.`patient_id`,encounter.encounter_datetime,encounter.encounter_id,`obs`.`obs_group_id`,`encounter`.`form_id`";
-        
+
         PreparedStatement ps = null;
         ResultSet rs = null;
         Obs obs = null;
@@ -8214,7 +8300,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public String getRegimenForPatientForVisit(int patientID, Date visitDate) {
         /*String sql_text = "select\n"
                 + "                orders.order_id,\n"
@@ -8253,10 +8339,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
         int patient_id = 0;
         int creator_id = 0;
         int count = 0;
-        
+
         String drugName = "";
         String regimenCode = "";
-        
+
         try {
             ps = prepareQuery(sql_text);
             ps.setInt(1, patientID);
@@ -8290,11 +8376,11 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 order.setDateEntered(rs.getDate("date_created"));
                 order.setCreator(creator_id);
                 count++;*/
-                
+
             }
             ps.close();
             rs.close();
-            
+
         } catch (SQLException ex) {
             ex.printStackTrace();
             screen.showError(ex.getMessage());
@@ -8302,9 +8388,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             cleanUp(rs, ps);
         }
         return drugName;
-        
+
     }
-    
+
     public void runMonthlyExport(Date startDate, Date endDate, int location, String encrypt, File file, String reportType) {
         screen.updateStatus("Loading patients... Please wait");
         long startTime = System.currentTimeMillis();
@@ -8330,15 +8416,15 @@ public class DataPumpDao implements model.datapump.DataAccess {
         File file2 = null;
         File file3 = null;
         file2 = new File(fileName);
-        
+
         try {
             if (fileName.contains(".")) {
                 fileName = fileName.substring(0, fileName.indexOf("."));
             }
             fileName += new SimpleDateFormat("yyyyMMddhhmm'.zip'").format(new Date());
-            
+
             file3 = new File(fileName);
-            
+
             mgr.createCSVWriter(file2.getAbsolutePath());
             mgr.writeCSVHeaders(Visit.getVisitHeaders());
             for (model.datapump.Demographics ele : ptsList) {
@@ -8359,13 +8445,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     lastVisitDate = lastVisitDateDictionary.get(ele.getPatientID());
                     visit = Visit.createVisit(ele, vdate, map, artStartDate, drugName, firstFormDate, lastVisitDate, lastARTPickupDate);
                     mgr.writeToCSV(visit);
-                    
+
                 }
                 count++;
                 screen.updateStatus("Writing " + file.getName() + "... Please wait " + count);
                 screen.updateProgress(count);
             }
-            
+
             mgr.closeCSVWriter();
             zipFileEntryNames.add(file2.getAbsolutePath());
             this.addToSpecialZipEncrypt(zipFileEntryNames, file3.getAbsolutePath());
@@ -8375,9 +8461,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ex.printStackTrace();
             screen.updateStatus(ex.getMessage());
         }
-        
+
     }
-    
+
     public PatientRegimen getRegimenForPatient(HashMap<Integer, Obs> map) {
         PatientRegimen regimen = new PatientRegimen();
         Obs obs = null;
@@ -8391,7 +8477,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             regimen.setPepfarID(obs.getPepfarID());
             regimen.setStartDate(obs.getVisitDate());
             regimen.setRegimenLine(regimenLine);
-            
+
         }
         obs = map.get(7778108);
         if (obs != null) {
@@ -8408,7 +8494,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return regimen;
     }
-    
+
     @Override
     public ArrayList<model.datapump.Location> getLocations() {
         ArrayList<model.datapump.Location> locationList = new ArrayList<model.datapump.Location>();
@@ -8428,7 +8514,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 loc.setUuid(result.getString("uuid"));
                 locationList.add(loc);
             }
-            
+
             result.close();
             ps.close();
         } catch (SQLException ex) {
@@ -8436,19 +8522,19 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return locationList;
     }
-    
+
     public void displayErrors(SQLException ex) {
         System.out.println("SQLException: " + ex.getMessage());
         System.out.println("SQLState: " + ex.getSQLState());
         System.out.println("VendorError: " + ex.getErrorCode());
         ex.printStackTrace();
     }
-    
+
     @Override
     public void setDisplay(model.datapump.DisplayScreen screen) {
         this.screen = screen;
     }
-    
+
     @Override
     public void closeConnections() {
         try {
@@ -8462,7 +8548,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.showError(ex.getMessage());
         }
     }
-    
+
     public HashMap<Integer, String> getAllPatientPepfarIDs() {
         ResultSet rs = null;
         HashMap<Integer, String> map = new HashMap<Integer, String>();
@@ -8481,7 +8567,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, PatientAddress> getAllPatientAddresses() {
         ResultSet rs = null;
         HashMap<Integer, PatientAddress> map = new HashMap<Integer, PatientAddress>();
@@ -8509,7 +8595,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, PatientProgram> getAllPatientProgram() {
         HashMap<Integer, PatientProgram> map = new HashMap<Integer, PatientProgram>();
         ResultSet rs = null;
@@ -8534,7 +8620,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     private HashMap<Integer, PatientProgram> getAllHEIEnrollment() {
         HashMap<Integer, PatientProgram> map = new HashMap<Integer, PatientProgram>();
         ResultSet rs = null;
@@ -8582,9 +8668,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus(ex.getMessage());
         }
         return map;
-        
+
     }
-    
+
     private HashMap<Integer, PatientProgram> getAllPepEnrollment() {
         HashMap<Integer, PatientProgram> map = new HashMap<Integer, PatientProgram>();
         ResultSet rs = null;
@@ -8632,9 +8718,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus(ex.getMessage());
         }
         return map;
-        
+
     }
-    
+
     private HashMap<Integer, PatientProgram> getAllPeadEnrollment() {
         HashMap<Integer, PatientProgram> map = new HashMap<Integer, PatientProgram>();
         ResultSet rs = null;
@@ -8682,11 +8768,11 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus(ex.getMessage());
         }
         return map;
-        
+
     }
-    
+
     public HashMap<Integer, User> getAllUsers() {
-        
+
         User usr = null;
         HashMap<Integer, User> map = new HashMap<Integer, User>();
         String query = "select "
@@ -8711,7 +8797,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 usr.setUser_id(rs.getInt("user_id"));
                 map.put(usr.getUser_id(), usr);
             }
-            
+
             rs.close();
             ps.close();
         } catch (SQLException ex) {
@@ -8719,7 +8805,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, String> getDrugNames() {
         HashMap<Integer, String> map = new HashMap<Integer, String>();
         ResultSet rs = null;
@@ -8737,7 +8823,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, model.datapump.Concept> getAllConcepts() {
         HashMap<Integer, model.datapump.Concept> map = new HashMap<Integer, model.datapump.Concept>();
         ResultSet rs = null;
@@ -8769,7 +8855,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, PersonName> getAllPersonNames() {
         ResultSet rs = null;
         String query = "SELECT person_id,given_name,family_name,middle_name FROM person_name where voided=0";
@@ -8787,7 +8873,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, Person> getAllPersonObj() {
         ResultSet rs = null;
         String query = "SELECT person_id, gender, birthdate,uuid FROM person where voided=0";
@@ -8811,7 +8897,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public ArrayList<Location> getLocationList() {
         ArrayList<Location> locationList = new ArrayList<Location>();
         try {
@@ -8829,16 +8915,16 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 loc.setLocationName(locationName);
                 locationList.add(loc);
             }
-            
+
             result.close();
             ps.close();
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
-        
+
         return locationList;
     }
-    
+
     public Map<Integer, String> getAllFacilities() {
         Map<Integer, String> locationDct = new HashMap<Integer, String>();
         Map<Integer, String> sortedLocation = new TreeMap<Integer, String>();
@@ -8865,7 +8951,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return sortedLocation;
     }
-    
+
     private void loadDemographics(int location_id) {
         patientDemoList = getAllPatientsInDB(location_id);
         patientDemoMap = new HashMap<Integer, model.datapump.Demographics>();
@@ -8873,7 +8959,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             patientDemoMap.put(demo.getPatientID(), demo);
         }
     }
-    
+
     public ArrayList<model.datapump.Demographics> getAllPatientsInDB(int location_id) {
         ArrayList<model.datapump.Demographics> patients = new ArrayList<model.datapump.Demographics>();
         String sql_text = "select \n"
@@ -8891,7 +8977,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "                from person \n"
                 + "                inner join patient_identifier pid on(pid.patient_id=person.person_id and pid.identifier_type=4 and pid.voided=0)\n"
                 + "                order by pid.identifier asc";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         try {
@@ -8899,7 +8985,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     java.sql.ResultSet.CONCUR_READ_ONLY);
             stmt.setFetchSize(Integer.MIN_VALUE);
             rs = stmt.executeQuery(sql_text);
-            
+
             int person_id = -1;
             int creator_id = -1;
             int count = 0;
@@ -8934,7 +9020,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 "creator",
                 "location"
             };
-            
+
             model.datapump.Demographics pts = null;
             while (rs.next()) {
                 pts = new model.datapump.Demographics();
@@ -8996,7 +9082,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 pts.setDateChanged(rs.getDate("date_changed"));
                 pts.setLocationID(location_id);
                 pts.setLocationName(String.valueOf(idLocationDictionary.get(person_id)));
-                
+
                 creator_id = rs.getInt("creator_id");
                 usr = userDictionary.get(creator_id);
                 if (usr != null) {
@@ -9024,7 +9110,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return patients;
     }
-    
+
     public ArrayList<model.datapump.Demographics> getAllPatientsInDB(int location_id, Set<Integer> idSet) {
         ArrayList<model.datapump.Demographics> patients = new ArrayList<model.datapump.Demographics>();
         String sql_text = "select \n"
@@ -9042,7 +9128,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "                from person \n"
                 + "                inner join patient_identifier pid on(pid.patient_id=person.person_id and pid.identifier_type=4 and pid.voided=0)\n"
                 + "                where person.person_id in(" + buildString(idSet) + ")  order by pid.identifier asc";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         try {
@@ -9050,7 +9136,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     java.sql.ResultSet.CONCUR_READ_ONLY);
             stmt.setFetchSize(Integer.MIN_VALUE);
             rs = stmt.executeQuery(sql_text);
-            
+
             int person_id = -1;
             int creator_id = -1;
             int count = 0;
@@ -9085,7 +9171,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 "creator",
                 "location"
             };
-            
+
             model.datapump.Demographics pts = null;
             while (rs.next()) {
                 pts = new model.datapump.Demographics();
@@ -9147,7 +9233,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 pts.setDateChanged(rs.getDate("date_changed"));
                 pts.setLocationID(location_id);
                 pts.setLocationName(String.valueOf(idLocationDictionary.get(person_id)));
-                
+
                 creator_id = rs.getInt("creator_id");
                 usr = userDictionary.get(creator_id);
                 if (usr != null) {
@@ -9175,7 +9261,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return patients;
     }
-    
+
     private HashMap<Integer, PatientProgram> getAllPMTCTEnrollment() {
         HashMap<Integer, PatientProgram> map = new HashMap<Integer, PatientProgram>();
         ResultSet rs = null;
@@ -9224,7 +9310,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, String> getAllPatientEHNID() {
         ResultSet rs = null;
         HashMap<Integer, String> map = new HashMap<Integer, String>();
@@ -9242,7 +9328,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, String> getAllPatientOtherID() {
         ResultSet rs = null;
         HashMap<Integer, String> map = new HashMap<Integer, String>();
@@ -9260,7 +9346,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public HashMap<Integer, String> getAllValueNumericConcept() {
         HashMap<Integer, String> numericConceptDictionary = new HashMap<Integer, String>();
         String query = "SELECT\n"
@@ -9286,7 +9372,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return numericConceptDictionary;
     }
-    
+
     public HashMap<Integer, String> getAllValueCodedConcept() {
         HashMap<Integer, String> codedObsDictionary = new HashMap<Integer, String>();
         String query = "SELECT\n"
@@ -9299,9 +9385,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "where concept.datatype_id=2 and concept_name.locale='en'";
         ResultSet rs = null;
         PreparedStatement ps = prepareQuery(query);
-        
+
         try {
-            
+
             rs = ps.executeQuery();
             while (rs.next()) {
                 codedObsDictionary.put(rs.getInt("concept_id"), rs.getString("name"));
@@ -9314,7 +9400,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return codedObsDictionary;
     }
-    
+
     public HashMap<Integer, String> getAllPatientHospIDs() {
         ResultSet rs = null;
         HashMap<Integer, String> map = new HashMap<Integer, String>();
@@ -9332,7 +9418,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     private HashMap<Integer, String> getIdentifierLocation() {
         HashMap<Integer, String> map = new HashMap<Integer, String>();
         String sql_text = "select patient_id,name location_name from patient_identifier left join location on(patient_identifier.location_id=location.location_id) where identifier_type=4 and voided=0";
@@ -9359,7 +9445,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     private HashMap<Integer, PatientProgram> getAllAdultEnrollment() {
         HashMap<Integer, PatientProgram> map = new HashMap<Integer, PatientProgram>();
         ResultSet rs = null;
@@ -9408,7 +9494,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     public PreparedStatement prepareQuery(String query) {
         ResultSet result = null;
         PreparedStatement ps = null;
@@ -9420,13 +9506,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ps;
     }
-    
+
     private long calculateDuration(long startTime) {
         long endTime = System.currentTimeMillis();
         long duration = (endTime - startTime) / 1000;
         return duration;
     }
-    
+
     public void loadDictionaries() {
         loadPepfarIDDictionary();
         loadPatientAddress();
@@ -9458,11 +9544,11 @@ public class DataPumpDao implements model.datapump.DataAccess {
 
         //loadLastARTPickupDate();
     }
-    
+
     private void loadPatientDemographics(int location_id) {
         patientDemoList = getAllPatientsInDB(location_id);
     }
-    
+
     private void loadPepfarIDDictionary() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9470,27 +9556,27 @@ public class DataPumpDao implements model.datapump.DataAccess {
         pepfarDictionary = getAllPatientPepfarIDs();
         duration = calculateDuration(startTime);
         screen.updateStatus("PEPFAR_ID dictionary loaded in " + duration + " secs");
-        
+
     }
-    
+
     private void loadPatientAddress() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
         addressDictionary = getAllPatientAddresses();
         duration = calculateDuration(startTime);
         screen.updateStatus("Address Dictionary loaded in " + duration + "secs");
-        
+
     }
-    
+
     private void loadPatientProgram() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
         programDictionary = getAllPatientProgram();
         duration = calculateDuration(startTime);
         screen.updateStatus("Program Dictionary loaded in " + duration + "secs");
-        
+
     }
-    
+
     private void loadPeadEnrollment() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9500,7 +9586,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         size = peadPatientProgram.size();
         screen.updateStatus(size + " Program Enrollment (Pead) loaded in " + duration + "secs");
     }
-    
+
     private void loadFormNamesDictionary() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9508,10 +9594,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
             formNamesDictionary = getAllForms();
             duration = calculateDuration(startTime);
             screen.updateStatus("form names dictionary loaded in " + duration + "secs");
-            
+
         }
     }
-    
+
     public HashMap<Integer, String> getAllForms() {
         HashMap<Integer, String> map = new HashMap<Integer, String>();
         ResultSet rs = null;
@@ -9530,7 +9616,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return map;
     }
-    
+
     private void loadUserDictionary() {
         int size = 0;
         long startTime = System.currentTimeMillis();
@@ -9540,7 +9626,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         duration = calculateDuration(startTime);
         screen.updateStatus(size + " Users dictionary loaded in " + duration + "secs");
     }
-    
+
     private void loadDrugDictionary() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9550,7 +9636,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus("Drug dictionary loaded in " + duration + "secs");
         //}
     }
-    
+
     private void loadConceptDictionary() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9560,7 +9646,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus("CONCEPT dictionary loaded in " + duration + "secs");
         }
     }
-    
+
     private void loadConceptDictionaryRL() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9570,7 +9656,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             screen.updateStatus("CONCEPT dictionary loaded in " + duration + "secs");
         }
     }
-    
+
     private void loadPersonNames() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9580,7 +9666,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus("Names Dictionary loaded in " + duration + "secs");
         // }
     }
-    
+
     private void loadLocations() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9590,7 +9676,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus("Phone Dictionary loaded in " + duration + "secs");
         // }
     }
-    
+
     private void loadPersonObj() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9600,7 +9686,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus("Person dictionary loaded in " + duration + "secs");
         //}
     }
-    
+
     private void loadPMTCTEnrollment() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9611,7 +9697,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         size = pmtctPatientProgram.size();
         screen.updateStatus(size + " Program Enrollment (PMTCT) loaded in " + duration + "secs");
     }
-    
+
     private void loadHEIEnrollment() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9622,7 +9708,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         size = heiEnrollment.size();
         screen.updateStatus(size + " Program Enrollment (HEI) loaded in " + duration + "secs");
     }
-    
+
     private void loadPepEnrollment() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9633,7 +9719,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         size = pepPatientEnrollment.size();
         screen.updateStatus(size + " Program Enrollment (PEP) loaded in " + duration + "secs");
     }
-    
+
     private void loadEHNIDDictionary() {
         long startTime = System.currentTimeMillis();
         int size = 0;
@@ -9645,7 +9731,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus(size + " EHNID dictionary loaded in " + duration + "secs");
         //}
     }
-    
+
     private void loadOtherIDDictionary() {
         long startTime = System.currentTimeMillis();
         int size = 0;
@@ -9655,7 +9741,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         duration = calculateDuration(startTime);
         screen.updateStatus(size + " Other ID dictionary loaded in " + duration + "secs");
     }
-    
+
     private void loadHospIDDictionary() {
         int size = 0;
         long startTime = System.currentTimeMillis();
@@ -9667,7 +9753,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         screen.updateStatus(size + " HOSP_ID dictionary loaded in " + duration + "secs");
         // }
     }
-    
+
     private void loadAdultEnrollment() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9678,7 +9764,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         size = adultARTPatientProgram.size();
         screen.updateStatus(size + " Program Enrollment (Adult) loaded in " + duration + "secs");
     }
-    
+
     private void loadIDLocationDictionary() {
         int size = 0;
         long startTime = System.currentTimeMillis();
@@ -9688,7 +9774,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         duration = calculateDuration(startTime);
         screen.updateStatus(size + " ID location dictionary loaded in " + duration + "secs");
     }
-    
+
     private void loadAllValueCodedConcepts() {
         long startTime = System.currentTimeMillis();
         long duration = 0L;
@@ -9696,7 +9782,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         duration = calculateDuration(startTime);
         screen.updateStatus("value coded concept loaded in memory.....");
     }
-    
+
     public String formatDate(Date date) {
         String dateString = "";
         if (date != null) {
@@ -9704,9 +9790,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             dateString = df.format(date);
         }
         return dateString;
-        
+
     }
-    
+
     public String formatDate2(Date date) {
         String dateString = "";
         if (date != null) {
@@ -9714,9 +9800,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             dateString = df.format(date);
         }
         return dateString;
-        
+
     }
-    
+
     public boolean isValueCodedConcept(int concept_id) {
         boolean ans = false;
         if (valueCodedDictionary.containsKey(concept_id)) {
@@ -9724,7 +9810,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-    
+
     public int getResultSetSize(ResultSet rs) throws SQLException {
         int rowCount = 0;
         if (rs.last()) {
@@ -9733,7 +9819,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return rowCount;
     }
-    
+
     private void loadLastVisitDictionary() {
         lastVisitDateDictionary = new HashMap<Integer, Date>();
         screen.updateStatus("Loading last visit dates... Please wait");
@@ -9759,9 +9845,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
     }
-    
+
     private void loadLastVisitVisitDictionary(Date startDate, Date endDate) {
         lastVisitDateDictionary = new HashMap<Integer, Date>();
         screen.updateStatus("Loading last visit dates... Please wait");
@@ -9788,9 +9874,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
     }
-    
+
     private void loadFirstVisitDictionary() {
         firstVisitDateDictionary = new HashMap<Integer, Date>();
         screen.updateStatus("Loading last visit dates... Please wait");
@@ -9804,7 +9890,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         ResultSet rs = null;
         try {
             ps = prepareQuery(sql_text);
-            
+
             rs = ps.executeQuery();
             while (rs.next()) {
                 firstVisitDateDictionary.put(rs.getInt("patient_id"), rs.getDate("first_visit_dt"));
@@ -9817,9 +9903,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, ps);
         }
-        
+
     }
-    
+
     public void runDispensedPharmacyFormDrugs(Date startDate, Date endDate, int location_id, File file) {
         screen.updateStatus("Exporting drug data...Please wait");
         String sql_text = "select \n"
@@ -9884,7 +9970,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "\n"
                 + "where encounter.form_id in (46,53)  and  obs_group_id is null and encounter\n"
                 + "GROUP BY obs.person_id,obs.encounter_id,obs.obs_group_id ORDER BY obs.person_id,obs.obs_datetime";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         PreparedStatement ps = null;
@@ -9897,7 +9983,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //String drugfileName = "drugs.xml";
         //File drugfile = new File(drugfileName);
         String[] headers = {"ORDER_ID", "PATIENT_ID", "PEPFAR_ID", "HOSP_ID", "DRUG", "CONCEPT_ID", "DOSE", "FRIQUENCY", "QUANTITY", "START_DATE", "STOP_DATE", "ENTERED_BY", "DATE_CREATED", "UUID"};
-        
+
         try {
             //stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
             // java.sql.ResultSet.CONCUR_READ_ONLY);
@@ -9905,7 +9991,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ps = prepareQuery(sql_text);
             ps.setDate(1, convertToSQLDate(startDate));
             ps.setDate(2, convertToSQLDate(endDate));
-            
+
             rs = ps.executeQuery();//stmt.executeQuery(sql_text);
             int size = getResultSetSize(rs);
             //mgr.createXMLWriter(drugfileName);
@@ -9953,14 +10039,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
 
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
-            
+
         } catch (IOException ex) {
             screen.updateStatus(ex.getMessage());
         } finally {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public void runDispensedDrugs(Date startDate, Date endDate, int location_id, File file) {
         screen.updateStatus("Exporting drug data...Please wait");
         String sql_text = "select\n"
@@ -9987,7 +10073,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "inner join drug on(drug.drug_id=drug_order.drug_inventory_id)\n"
                 + "inner join patient on(patient.patient_id=orders.patient_id and patient.voided=0) where orders.start_date between ? and ?\n"
                 + "ORDER BY patient_id asc ,orders.start_date asc;";
-        
+
         Statement stmt = null;
         ResultSet rs = null;
         PreparedStatement ps = null;
@@ -10000,7 +10086,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //String drugfileName = "drugs.xml";
         //File drugfile = new File(drugfileName);
         String[] headers = {"ORDER_ID", "PATIENT_ID", "PEPFAR_ID", "HOSP_ID", "DRUG", "CONCEPT_ID", "DOSE", "FRIQUENCY", "QUANTITY", "START_DATE", "STOP_DATE", "ENTERED_BY", "DATE_CREATED", "UUID"};
-        
+
         try {
             //stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
             // java.sql.ResultSet.CONCUR_READ_ONLY);
@@ -10008,7 +10094,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             ps = prepareQuery(sql_text);
             ps.setDate(1, convertToSQLDate(startDate));
             ps.setDate(2, convertToSQLDate(endDate));
-            
+
             rs = ps.executeQuery();//stmt.executeQuery(sql_text);
             int size = getResultSetSize(rs);
             //mgr.createXMLWriter(drugfileName);
@@ -10056,16 +10142,16 @@ public class DataPumpDao implements model.datapump.DataAccess {
 
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
-            
+
         } catch (IOException ex) {
             screen.updateStatus(ex.getMessage());
         } finally {
             cleanUp(rs, stmt);
         }
     }
-    
+
     public void runAppointmentExport(Date startDate, Date endDate, int location_id, File file) {
-        
+
         screen.updateStatus("Exporting Appointment data...Please wait");
         // String startDateStr=formatDate(startDate);
         // String endDateStr=formatDate(endDate);
@@ -10163,7 +10249,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 mgr.writeToCSV(apt);
                 screen.updateProgress(count++);
                 screen.updateStatus("Writing appointment data....Please wait " + count);
-                
+
             }
             screen.updateStatus("Appointment data completed");
             // screen.setState(false);
@@ -10184,7 +10270,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         } finally {
             cleanUp(rs, stmt);
         }
-        
+
     }
-    
+
 }

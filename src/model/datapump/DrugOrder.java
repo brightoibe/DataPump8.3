@@ -56,6 +56,7 @@ public class DrugOrder extends model.datapump.Drugs{
     private String uuid;
     private int conceptID;
     private int patientID;
+    private int regimenLineConceptID;
     private int encounterID;
     private int providerID;
     private int formID;
@@ -325,6 +326,20 @@ public class DrugOrder extends model.datapump.Drugs{
      */
     public void setVoidedBy(int voidedBy) {
         this.voidedBy = voidedBy;
+    }
+
+    /**
+     * @return the regimenLineConceptID
+     */
+    public int getRegimenLineConceptID() {
+        return regimenLineConceptID;
+    }
+
+    /**
+     * @param regimenLineConceptID the regimenLineConceptID to set
+     */
+    public void setRegimenLineConceptID(int regimenLineConceptID) {
+        this.regimenLineConceptID = regimenLineConceptID;
     }
 
    

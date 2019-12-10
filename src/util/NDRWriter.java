@@ -1591,12 +1591,21 @@ public class NDRWriter {
 
     public void loadRegimenToCodeDictionary() {
         mapRegimenToCodeDictionary = new HashMap<String, String>();
+        mapRegimenToCodeDictionary.put("DRV/r + DTG ± 1-2 NRTIs", "6c");
+        mapRegimenToCodeDictionary.put("DRV/r +2NRTIs ± NNRTI", "6a");
+        mapRegimenToCodeDictionary.put("RAL (or DTG) + 2 NRTIs", "6f");
+        mapRegimenToCodeDictionary.put("DRV/r +2NRTIs", "6b");
+        mapRegimenToCodeDictionary.put("DRV/r + RAL (or DTG) ± 1-2 NRTIs", "6d");
+        mapRegimenToCodeDictionary.put("DRV/r +DTG ± 1-2 NRTIs", "6c");
+
+        mapRegimenToCodeDictionary.put("AZT-3TC-RAL", "5i");
+        mapRegimenToCodeDictionary.put("ABC-3TC-RAL", "5g");
         mapRegimenToCodeDictionary.put("3TC-D4T-EFV", "1k");
-        mapRegimenToCodeDictionary.put("TDF-3TC-DTG","1m");
-        mapRegimenToCodeDictionary.put("TDF-FTC-DTG","1n");
-        mapRegimenToCodeDictionary.put("ABC-3TC-DTG","1o");
-        mapRegimenToCodeDictionary.put("ABC-FTC-DTG","1p");
-        mapRegimenToCodeDictionary.put("Other first line","1k");
+        mapRegimenToCodeDictionary.put("TDF-3TC-DTG", "1m");
+        mapRegimenToCodeDictionary.put("TDF-FTC-DTG", "1o");
+        mapRegimenToCodeDictionary.put("ABC-3TC-DTG", "4h");
+        mapRegimenToCodeDictionary.put("ABC-FTC-DTG", "4k");
+        mapRegimenToCodeDictionary.put("Other first line", "1k");
         mapRegimenToCodeDictionary.put("AZT-3TC-EFV", "1a");
         mapRegimenToCodeDictionary.put("AZT-3TC-NVP", "1b");
         mapRegimenToCodeDictionary.put("TDF-FTC-EFV", "1c");
@@ -1654,7 +1663,7 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("ABC-AZT-LPV/r", "2g");
         mapRegimenToCodeDictionary.put("DDI-IDV/r-TDF", "2g");
         mapRegimenToCodeDictionary.put("DDI-SQV/r-TDF", "2g");
-        mapRegimenToCodeDictionary.put("Other second line","2g");
+        mapRegimenToCodeDictionary.put("Other second line", "2g");
 
     }
 
@@ -1701,7 +1710,8 @@ public class NDRWriter {
         }
         return code;
     }
-    public String getRegimenCode(String regimen,int regimenLineConcept) {
+
+    public String getRegimenCode(String regimen, int regimenLineConcept) {
         String code = null;
         Set<String> set = mapRegimenToCodeDictionary.keySet();
         for (String ele : set) {
@@ -1709,12 +1719,19 @@ public class NDRWriter {
                 code = mapRegimenToCodeDictionary.get(ele);
                 return code;
             }
+            if(code==null){
+                code=mapRegimenToCodeDictionary.get(regimen);
+            }
+            
         }
-        if(StringUtils.isEmpty(code) && regimenLineConcept==7778108){
-                code="1k";
+        if (StringUtils.isEmpty(code) && (regimenLineConcept == 7778108 || regimenLineConcept == 7778410)) {
+            code = "1k";
         }
-        if(StringUtils.isEmpty(code) && regimenLineConcept==7778109){
-                code="2g";
+        if (StringUtils.isEmpty(code) && regimenLineConcept == 7778109) {
+            code = "2g";
+        }
+        if (StringUtils.isEmpty(code) && regimenLineConcept == 7778611) {
+            code = "6g";
         }
         return code;
     }
@@ -1831,9 +1848,9 @@ public class NDRWriter {
                     break;
                 case 352:
                     value_coded = obs.getValueCoded();
-                    if(value_coded==789){
+                    if (value_coded == 789) {
                         demo.setPatientMaritalStatusCode("T");
-                    }else{
+                    } else {
                         demo.setPatientMaritalStatusCode(patientDemographicDictionary.get(value_coded));
                     }
                     break;
@@ -2005,14 +2022,14 @@ public class NDRWriter {
                     case 7778108:
                         regimen = obs.getVariableValue();
                         cst = new CodedSimpleType();
-                        cst.setCode(getRegimenCode(regimen,7778108));
+                        cst.setCode(getRegimenCode(regimen, 7778108));
                         cst.setCodeDescTxt(getCareCardRegimen(regimen));
                         hivEncType.setARVDrugRegimen(cst);
                         break;
                     case 7778109:
                         regimen = obs.getVariableValue();
                         cst = new CodedSimpleType();
-                        cst.setCode(getRegimenCode(regimen,7778109));
+                        cst.setCode(getRegimenCode(regimen, 7778109));
                         //cst.setCode(getRegimenCode(regimen));
                         cst.setCodeDescTxt(getCareCardRegimen(regimen));
                         hivEncType.setARVDrugRegimen(cst);
@@ -2294,7 +2311,7 @@ public class NDRWriter {
         if (StringUtils.equalsIgnoreCase(drugName, "CTX")) {
             if (StringUtils.isNotBlank(otherStrength)) {
                 code = "CTX960";
-                description = "Cotrimoxazole"+" "+otherStrength;
+                description = "Cotrimoxazole" + " " + otherStrength;
                 cst = new CodedSimpleType();
                 cst.setCode(code);
                 cst.setCodeDescTxt(description);
@@ -2369,10 +2386,10 @@ public class NDRWriter {
             }
 
             //if (dayVal > 120) {
-                //dayVal = 30;
+            //dayVal = 30;
             //}
             //if (dayVal > 180) {
-                //dayVal = 180;
+            //dayVal = 180;
             //}
         }
         DateTime startDateTime = new DateTime(startDate);
@@ -2387,27 +2404,48 @@ public class NDRWriter {
         String pepfarID = "", prescribedRegimenTypeCode = "", regimenLine = "", regimenLineCode = "", drugName = rgm.getDrugName();
         Date startDate = null, stopDate = null;
         CodedSimpleType cst = null;
-        int regimenConcept=0;
-
-        if (!rgm.getRegimenName().isEmpty() && getRegimenCode(rgm.getRegimenName()) != null) {
+        int regimenConcept = 0;
+        int regimenLineConceptID=0;
+        if (!rgm.getRegimenName().isEmpty() && getRegimenCode(rgm.getRegimenName(), order.getRegimenLineConceptID()) != null) {
             pepfarID = rgm.getPepfarID();
             startDate = rgm.getStartDate();
             stopDate = rgm.getStopDate();
             prescribedRegimenTypeCode = "ART";
             regimenLine = rgm.getRegimenLine();
-            if(regimenLine.equalsIgnoreCase("First Line")){
-                regimenConcept=7778108;
-            }else if(regimenLine.equalsIgnoreCase("Second Line")){
-                regimenConcept=7778109;
-            }
-            cst = new CodedSimpleType();
-            cst.setCode(getRegimenCode(rgm.getRegimenName(),regimenConcept));// To be handled latter
-            cst.setCodeDescTxt(getCareCardRegimen(rgm.getRegimenName()));
-            if (regimenLine.equalsIgnoreCase("First Line")) {
-                regimenLineCode = "10";
+            regimenLineConceptID=rgm.getRegimenLineConceptID();
+            
+            /*if (regimenLine.equalsIgnoreCase("First Line")) {
+                regimenConcept = 7778108;
             } else if (regimenLine.equalsIgnoreCase("Second Line")) {
-                regimenLineCode = "20";
+                regimenConcept = 7778109;
+            } */
+            
+            cst = new CodedSimpleType();
+            cst.setCode(getRegimenCode(rgm.getRegimenName(), regimenConcept));// To be handled latter
+            cst.setCodeDescTxt(getCareCardRegimen(rgm.getRegimenName()));
+            /*if (regimenLine.equalsIgnoreCase("First Line")) {
+            regimenLineCode = "10";
+            } else if (regimenLine.equalsIgnoreCase("Second Line")) {
+            regimenLineCode = "20";
+            }*/
+            switch (regimenLineConceptID) {
+                case 7778108:
+                    regimenLineCode="10";
+                    break;
+            
+                case 7778109:
+                    regimenLineCode="20";
+                    break;
+                case 7778611:
+                    regimenLineCode="30";
+                    break;
+                case 7778410:
+                    regimenLineCode="10";
+                    break;
+                default:
+                    break;
             }
+            
             regimenType = createRegimenType(pepfarID, startDate, stopDate, prescribedRegimenTypeCode, regimenLineCode, cst);
 
         }
@@ -2434,6 +2472,7 @@ public class NDRWriter {
             regimenType.setDateRegimenStartedDD(day);
             regimenType.setDateRegimenStartedMM(month);
             regimenType.setDateRegimenStartedYYYY(year);
+            regimenType.setPrescribedRegimenLineCode(regimenLine);
             Date endDate = stopDate;
             if (endDate != null) {
                 regimenType.setDateRegimenEnded(getXmlDate(endDate));
@@ -2448,11 +2487,11 @@ public class NDRWriter {
                 DateTime endDateTime = new DateTime(endDate);
                 //Weeks wks = Weeks.weeksBetween(startDateTime, endDateTime);
                 //int wkVal = wks.getWeeks();
-                Days days=Days.daysBetween(startDateTime, endDateTime);
-                int daysVal=days.getDays();
+                Days days = Days.daysBetween(startDateTime, endDateTime);
+                int daysVal = days.getDays();
                 String regimenDuration = String.valueOf(daysVal);
                 regimenType.setPrescribedRegimenDuration(regimenDuration);
-                
+
             }
 
         }

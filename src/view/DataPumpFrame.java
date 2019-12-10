@@ -57,7 +57,7 @@ public class DataPumpFrame extends javax.swing.JFrame  implements DisplayScreen,
         this.getContentPane().setBackground(new Color(51, 51, 0));
         exportTypeComboBox.setModel(controler.getExportTypeModel());
         encryptionCombo.setModel(controler.getEncryptionTypeModel());
-        hostField.setText("localhost");
+        hostField.setText("192.168.40.221");
         passwordField.setText("42Gg5Kj4a^Tw");
         portField.setText("3316");
         userNameField.setText("openmrs");
