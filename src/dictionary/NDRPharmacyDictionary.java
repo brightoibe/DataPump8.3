@@ -327,7 +327,7 @@ public class NDRPharmacyDictionary {
         return regimenTypeList;
     }
 
-    public boolean isARV(int valueCoded) {
+    public boolean isARV(Integer valueCoded) {
         boolean ans = false;
         if (arvRegimenList.contains(valueCoded)) {
             ans = true;
@@ -346,6 +346,7 @@ public class NDRPharmacyDictionary {
         obsPin = NDRCommonUtills.getObsForConceptFromList(7778111, obsList);// RegimenLine
         Calendar cal = Calendar.getInstance();
         String month = "", year = "", day = "", durationUnit = "", regimenCode = "";
+        durationUnit = "DAY(S)";
         Date stopDate = null;
         if (obsPin != null) {
             regimenType = new RegimenType();
@@ -419,20 +420,20 @@ public class NDRPharmacyDictionary {
                     stopDate = NDRCommonUtills.calculateStopDate(visitDate, duration, durationCodedUnit);
                 }
             }
-            /*if(stopDate == null) {
-                obsPin = NDRCommonUtills.getObsForConceptFromList(5096, obsList);//Return Visit Date
+            if(stopDate == null) {
+                obsPin = NDRCommonUtills.getObsForConceptFromList(7777822, obsList);//Return Visit Date
                 if (obsPin != null) {
                     System.out.println("Next Appointment Date value is " + obsPin.getValueDate());
                     stopDate = obsPin.getValueDate();
                     //stopDate = NDRCommonUtills.calculateStopDate(visitDate, duration, durationUnit);
                 }
 
-            }*/
-            /*if (stopDate == null) {
+            }
+            if (stopDate == null) {
                 duration = 30;
                 durationUnit = "DAY(S)";
                 stopDate = NDRCommonUtills.calculateStopDate(visitDate, duration, durationUnit);
-            }*/
+            }
             regimenType.setDateRegimenEnded(getXmlDate(stopDate));
             cal = Calendar.getInstance();
             cal.setTime(stopDate);

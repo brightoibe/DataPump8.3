@@ -1157,7 +1157,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             allVisitList = loadAllVisit(idSet);
             for (model.datapump.Demographics pts : patients) {
                 int patientID = pts.getPatientID();
-                if (!pts.getPepfarID().isEmpty() && !pts.getGender().isEmpty() && pts.getDateOfBirth() != null) {//&& StringUtils.contains(pts.getPepfarID(),"FCT1516")) {
+                if (patientID==16507 && !pts.getPepfarID().isEmpty() && !pts.getGender().isEmpty() && pts.getDateOfBirth() != null) {//&& StringUtils.contains(pts.getPepfarID(),"FCT1516")) {
                     messageID = UUID.randomUUID().toString();
                     container = ndrWriter.createContainer("UPDATED", messageID, schemaVersion);
                     individual = ndrWriter.createIndividualReport();
@@ -1196,8 +1196,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     phamarcyObsList = getObsFromPharmacyForPatient(patientID);
                     orders = getDrugOrderForPatient(pts.getPatientID(), phamarcyObsList);// extract all regimens
                     drugList = getAllDrugsForPatient(pts.getPatientID(), phamarcyObsList);// extracts individual drugs especially OIs
-                    regimenTypeList = NDRDictionary.createRegimenTypeList(pts, phamarcyObsList);
-                    //regimenTypeList = ndrWriter.createRegimenTypeList(orders, pts);
+                    //regimenTypeList = NDRDictionary.createRegimenTypeList(pts, phamarcyObsList);
+                    regimenTypeList = ndrWriter.createRegimenTypeList(orders, pts);
                     conditionType.getRegimen().addAll(regimenTypeList);
                     regimenTypeList = ndrWriter.createRegimenTypeListFromDrugs(drugList, pts);
                     conditionType.getRegimen().addAll(regimenTypeList);
@@ -1827,6 +1827,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             //Date stopDate = null;
             while (rs.next()) {
                 obs = constructObs2(rs);
+                System.out.println("Concept ID: "+obs.getConceptID()+" VisitDate: "+obs.getVisitDate()+" Value: "+obs.getVariableValue());
                 obsList.add(obs);
                 /*order = new model.datapump.PatientRegimen();
                 order.setPatientID(rs.getInt("patient_id"));
