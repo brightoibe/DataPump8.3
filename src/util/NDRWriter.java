@@ -2421,7 +2421,7 @@ public class NDRWriter {
             } */
             
             cst = new CodedSimpleType();
-            cst.setCode(getRegimenCode(rgm.getRegimenName(), regimenConcept));// To be handled latter
+            cst.setCode(getRegimenCode(rgm.getRegimenName(), regimenLineConceptID));// To be handled latter
             cst.setCodeDescTxt(getCareCardRegimen(rgm.getRegimenName()));
             /*if (regimenLine.equalsIgnoreCase("First Line")) {
             regimenLineCode = "10";
@@ -2432,7 +2432,6 @@ public class NDRWriter {
                 case 7778108:
                     regimenLineCode="10";
                     break;
-            
                 case 7778109:
                     regimenLineCode="20";
                     break;
