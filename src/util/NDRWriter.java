@@ -2305,7 +2305,8 @@ public class NDRWriter {
         startDate = drg.getDispensedDate();
         duration = drg.getDuration();
         durationUnit = drg.getDurationUnit();
-        stopDate = calculateStopDate(startDate, duration, durationUnit);
+        stopDate=drg.getStopDate();
+        //stopDate = calculateStopDate(startDate, duration, durationUnit);
         prescribedRegimenTypeCode = "";
         regimenLineCode = null;
         if (StringUtils.equalsIgnoreCase(drugName, "CTX")) {
@@ -2375,7 +2376,7 @@ public class NDRWriter {
 
     public Date calculateStopDate(Date startDate, int duration, String unit) {
         Date stopDate = null;
-        int dayVal = 30;
+        int dayVal = 90;
         if (StringUtils.isNotBlank(unit)) {
             if (StringUtils.equalsIgnoreCase(unit, "MONTH(S)")) {
                 dayVal = duration * 30;
@@ -2385,9 +2386,9 @@ public class NDRWriter {
                 dayVal = duration * 7;
             }
 
-            //if (dayVal > 120) {
-            //dayVal = 30;
-            //}
+            if (dayVal > 210) {
+              dayVal = 90;
+            }
             //if (dayVal > 180) {
             //dayVal = 180;
             //}

@@ -157,10 +157,11 @@ public class DataPumpDao implements model.datapump.DataAccess {
     private LocationMap locMap = new LocationMap();
     private DateFormat formatter;
     private NDRPharmacyDictionary pharmacyDictionary;
+
     public DataPumpDao() {
         zipFileEntryNames = new ArrayList<String>();
         mgr = new FileManager();
-        pharmacyDictionary=new NDRPharmacyDictionary();
+        pharmacyDictionary = new NDRPharmacyDictionary();
     }
 
     public boolean loadDriver() {
@@ -2277,7 +2278,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         model.datapump.Obs obs = null;
         for (model.datapump.Obs ele : obsList) {
             //if (ele.getConceptID() == conceptID && ele.getFormID() == formID && ele.getObsGroupID() == obsGroupID && ele.getVisitDate().equals(visitDate)) {
-            if (ele.getConceptID() == conceptID  && ele.getObsGroupID() == obsGroupID && ele.getVisitDate().equals(visitDate)) {
+            if (ele.getConceptID() == conceptID && ele.getObsGroupID() == obsGroupID && ele.getVisitDate().equals(visitDate)) {
                 obs = ele;
             }
         }
@@ -2408,7 +2409,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         String dose = "";
         String frequency = "";
         int quantity = 0;
-        int regimenLineConceptID=0;
+        int regimenLineConceptID = 0;
         String regimenCode = "";
         String regimenLine = "";
         String enteredBy = "";
@@ -2437,7 +2438,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 
          */
         startDate = visitDate;
-        String firstLine = "", secondLine = "", thirdLine="", otherLine="";
+        String firstLine = "", secondLine = "", thirdLine = "", otherLine = "";
 
         obsPin = getConceptForForm(7778111, formID, obsList, visitDate);
         if (obsPin != null) {
@@ -2446,7 +2447,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             int code = obsPin.getValueCoded();
             pepfarID = obsPin.getPepfarID();
             hospID = obsPin.getHospID();
-            regimenLineConceptID=code;
+            regimenLineConceptID = code;
             switch (code) {
                 case 7778108:
                     obsPin = getConceptForForm(7778108, formID, obsList, visitDate);
@@ -2454,28 +2455,30 @@ public class DataPumpDao implements model.datapump.DataAccess {
                         firstLine = obsPin.getVariableValue();
                         regimenName = firstLine;
                         //System.out.println("Regimen seen "+obsPin.getVariableValue());
-                    }   break;
+                    }
+                    break;
                 case 7778109:
                     obsPin = getConceptForForm(7778109, formID, obsList, visitDate);//Second Line
                     if (obsPin != null) {
                         secondLine = obsPin.getVariableValue();
                         regimenName = secondLine;
                         //System.out.println("Regimen seen "+obsPin.getVariableValue());
-                    }   break;
+                    }
+                    break;
                 case 7778611:
-                    obsPin=getConceptForForm(7778611, formID, obsList, visitDate);//Third Line
-                    if(obsPin!=null){
-                        thirdLine=obsPin.getVariableValue();
-                        regimenName=thirdLine;
-                    } 
+                    obsPin = getConceptForForm(7778611, formID, obsList, visitDate);//Third Line
+                    if (obsPin != null) {
+                        thirdLine = obsPin.getVariableValue();
+                        regimenName = thirdLine;
+                    }
                     break;
                 case 7778410:
-                    obsPin=getConceptForForm(7778410, formID, obsList, visitDate);//Other drugs
-                    if(obsPin!=null){
-                        otherLine=obsPin.getVariableValue();
-                        regimenName=otherLine;
+                    obsPin = getConceptForForm(7778410, formID, obsList, visitDate);//Other drugs
+                    if (obsPin != null) {
+                        otherLine = obsPin.getVariableValue();
+                        regimenName = otherLine;
                     }
-                break;
+                    break;
                 default:
                     break;
             }
@@ -2485,27 +2488,27 @@ public class DataPumpDao implements model.datapump.DataAccess {
             Extract the DrugName Concept and check if it is ARV
          */
         obsTargetList = getConceptListFromObsList(7778364, formID, obsList, visitDate);//Find all drugName Concepts
-        obsPin=getARVDrugConceptFromList(obsTargetList, visitDate);// extract the first ARV Drug Dispensed
-        int obs_group_id=0;
-        if(obsPin!=null){
-            obs_group_id=obsPin.getObsGroupID();
-            obsPin=getConceptForForm(7778371, obs_group_id, formID, obsList,visitDate);//Get Drug Duration Unit
-            if(obsPin!=null){
-                durationUnit=obsPin.getVariableValue();
+        obsPin = getARVDrugConceptFromList(obsTargetList, visitDate);// extract the first ARV Drug Dispensed
+        int obs_group_id = 0;
+        if (obsPin != null) {
+            obs_group_id = obsPin.getObsGroupID();
+            obsPin = getConceptForForm(7778371, obs_group_id, formID, obsList, visitDate);//Get Drug Duration Unit
+            if (obsPin != null) {
+                durationUnit = obsPin.getVariableValue();
             }
-            obsPin=getConceptForForm(7778370, obs_group_id, formID, obsList,visitDate);//Get Drug Duration Value
-            if(obsPin!=null){
-                duration=(int)obsPin.getValueNumeric();
+            obsPin = getConceptForForm(7778370, obs_group_id, formID, obsList, visitDate);//Get Drug Duration Value
+            if (obsPin != null) {
+                duration = (int) obsPin.getValueNumeric();
             }
-            obsPin = getConceptForForm(7778365, obs_group_id, formID, obsList,visitDate);//Get Drug Strength Value
+            obsPin = getConceptForForm(7778365, obs_group_id, formID, obsList, visitDate);//Get Drug Strength Value
             if (obsPin != null) {
                 strength = obsPin.getVariableValue();
             }
-            obsPin = getConceptForForm(7778407, obs_group_id, formID, obsList,visitDate);//Get Drug Frequency Value
+            obsPin = getConceptForForm(7778407, obs_group_id, formID, obsList, visitDate);//Get Drug Frequency Value
             if (obsPin != null) {
-                 frequency = obsPin.getVariableValue();
+                frequency = obsPin.getVariableValue();
             }
-            
+
         }
         stopDate = calculateStopDate(visitDate, duration, durationUnit);
 
@@ -2522,8 +2525,6 @@ public class DataPumpDao implements model.datapump.DataAccess {
         if (obsPin != null) {
             duration = (int) obsPin.getValueNumeric();
         }*/
-        
-
         //}
         /*if(StringUtils.isEmpty(durationUnit) || duration == 0 ){
         obsPin = getConceptForForm(7777821, 56, obsList, visitDate);
@@ -2648,7 +2649,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         for (Obs ele : obsList) {
             valueCoded = ele.getValueCoded();
             if (visitDate.equals(ele.getVisitDate()) && pharmacyDictionary.isARV(valueCoded)) {
-                obs=ele;
+                obs = ele;
                 return obs;
             }
         }
@@ -2656,7 +2657,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
     }
 
     public model.datapump.Drugs getDrugObsParameters(int obsGroupID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
-        model.datapump.Drugs drg = new model.datapump.Drugs();
+        model.datapump.Drugs drg = null;
         int patientID = 0;
         String pepfarID = "";
         String hospID = "";
@@ -2686,15 +2687,71 @@ public class DataPumpDao implements model.datapump.DataAccess {
         /*
             Extract drugName
          */
-        obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList,visitDate);// Drug name
-        if (obsPin != null){
-            drugName = obsPin.getVariableValue();
-            drugConceptID = obsPin.getValueCoded();//ConceptID();
-            
-            patientID = obsPin.getPatientID();
-            pepfarID = obsPin.getPepfarID();
-            hospID = obsPin.getHospID();
-            formID = obsPin.getFormID();
+        obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList, visitDate);// Drug name
+        if (obsPin != null) {
+            if (pharmacyDictionary.isOI(drugConceptID)) {
+                drg=new model.datapump.DrugOrder();
+                patientID = obsPin.getPatientID();
+                pepfarID = obsPin.getPepfarID();
+                hospID = obsPin.getHospID();
+                formID = obsPin.getFormID();
+                drugName = obsPin.getVariableValue();
+                drugConceptID = obsPin.getValueCoded();//ConceptID();
+                //Extract strength or Other Strength
+                obsPin = getConceptForForm(7778365, obsGroupID, formID, obsList, visitDate);
+                if (obsPin != null) {
+                    strength = obsPin.getVariableValue();
+                } else {
+                    obsPin = getConceptForForm(7778390, obsGroupID, formID, obsList, visitDate);//Extract Other Strength
+                    if (obsPin != null) {
+                        otherStrength = obsPin.getValueText();
+                        strength = obsPin.getValueText();
+                    }
+                }
+                //Extract frequency
+                obsPin = getConceptForForm(7778407, obsGroupID, formID, obsList, visitDate);
+                if (obsPin != null) {
+                    frequency = obsPin.getVariableValue();
+                }
+                //Extract Drug Duration Unit
+                obsPin = getConceptForForm(7778371, obsGroupID, formID, obsList, visitDate); // Drug Duration unit
+                if (obsPin != null) {
+                    durationUnit = obsPin.getVariableValue();
+                }
+                //Extract Drug Duration Value
+                obsPin = getConceptForForm(7778370, obsGroupID, formID, obsList, visitDate);// Drug Duration number
+                if (obsPin != null) {
+                    duration = (int) obsPin.getValueNumeric();
+                }
+                //Calculate Stop Date
+                startDate = visitDate;
+                stopDate = calculateStopDate(visitDate, duration, durationUnit);
+                drg.setPatientID(patientID);
+                drg.setEncounterID(encounterID);
+                drg.setDispensedDate(startDate);
+                drg.setPepfarID(pepfarID);
+                drg.setStrength(strength);
+                drg.setOtherStrength(otherStrength);
+                drg.setHospID(hospID);
+                drg.setDuration(duration);
+                drg.setDurationUnit(durationUnit);
+                drg.setStopDate(stopDate);
+                //drg.setDrugName(drugName);
+                //drg.setStartDate(startDate);
+                //drg.setStopDate(stopDate);
+                drg.setDrugName(drugName);
+                //order.setDrugName(drugName);
+                drg.setFrequency(frequency);
+                drg.setConceptID(drugConceptID);
+                //drg.setRegimenName(regimenName);
+                //drg.setCode(String.valueOf(getCode(regimenName)));
+                //drg.setRegimenLine(regimenLine);
+                drg.setEnteredBy(enteredBy);
+                drg.setDateEntered(dateEntered);
+                //drg.setCreator(creatorID);
+
+            }
+
         }
         /*else {
             obsPin = getConceptForForm(7778203, formID, obsList, visitDate);
@@ -2703,14 +2760,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
         }*/
 
-        /*
+ /*
             Extract the strength; frequency
          */
-        obsPin = getConceptForForm(7778365, obsGroupID, formID, obsList, visitDate);
-        if (obsPin != null) {
-            strength = obsPin.getVariableValue();
-        } 
-        /*else if (StringUtils.equalsIgnoreCase(drugName, "CTX")) {
+ /*else if (StringUtils.equalsIgnoreCase(drugName, "CTX")) {
             obsPin = getConceptForForm(7778203, formID, obsList, visitDate);
             if (obsPin != null) {
                 valueCoded = obsPin.getValueCoded();
@@ -2736,25 +2789,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 }
             }
         }
-        /*
-           Extract otherStrength
-         */
-        obsPin = getConceptForForm(7778390, obsGroupID, formID, obsList,visitDate);
-        if (obsPin != null) {
-            otherStrength = obsPin.getValueText();
-        }
+        
         /*
             Extracts the frequency
          */
-        obsPin = getConceptForForm(7778407, obsGroupID, formID, obsList,visitDate);
-        if (obsPin != null) {
-            frequency = obsPin.getVariableValue();
-        }
-
-        /*
+ /*
            Extract duration and durationUnit
          */
-        obsPin = getConceptForForm(7777821, obsGroupID, formID, obsList, visitDate);
+ /*obsPin = getConceptForForm(7777821, obsGroupID, formID, obsList, visitDate);
         if (obsPin != null) {
             valueCoded = obsPin.getValueCoded();
             switch (valueCoded) {
@@ -2785,8 +2827,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 default:
                     break;
             }
-        } 
-        /*else {
+        }*/
+ /*else {
             obsPin = getConceptForForm(7777822, 56, obsList, visitDate);
             Date nextAppointmentDate = null;
             if (obsPin != null) {
@@ -2799,27 +2841,26 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
 
         }*/
-        if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 210) {
-            obsPin = getConceptForForm(7778371, obsGroupID, formID, obsList,visitDate); // Drug Duration unit
+ /*if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 210) {
+            obsPin = getConceptForForm(7778371, obsGroupID, formID, obsList, visitDate); // Drug Duration unit
             if (obsPin != null) {
                 durationUnit = obsPin.getVariableValue();
             }
-            obsPin = getConceptForForm(7778370, obsGroupID, formID, obsList,visitDate);// Drug Duration number
+            obsPin = getConceptForForm(7778370, obsGroupID, formID, obsList, visitDate);// Drug Duration number
             if (obsPin != null) {
                 duration = (int) obsPin.getValueNumeric();
             }
 
-        }
-        if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 210) {
+        }*/
+ /*if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 210) {
             duration = 3;
             durationUnit = "MONTH(S)";
-        }
-        /*
+        }*/
+ /*
             Extract startDate and stopDate
          */
-        startDate = visitDate;
-        stopDate = calculateStopDate(visitDate, duration, durationUnit);
-
+ /*startDate = visitDate;
+        stopDate = calculateStopDate(visitDate, duration, durationUnit);*/
         //for (model.datapump.Obs ele : obsList) {
         //if (ele.getObsGroupID() == obsGroupID) {
         //formID = ele.getFormID();
@@ -2828,7 +2869,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         //hospID = ele.getHospID();
         //encounterID = ele.getEncounterID();
         //providerID = ele.getProviderID();
-        obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList);// Drug name
+        /*obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList);// Drug name
         if (obsPin != null) {
             drugName = obsPin.getVariableValue();
             drugConceptID = obsPin.getValueCoded();//ConceptID();
@@ -2857,8 +2898,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
                         break;
                 }
             }
-        }
-        String firstLine = "", secondLine = "";
+        }*/
+ /*String firstLine = "", secondLine = "";
         obsPin = getConceptForForm(7778111, formID, obsList, visitDate);
         if (obsPin != null) {
             regimenLine = obsPin.getVariableValue();
@@ -2876,35 +2917,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     regimenName = secondLine;
                 }
             }
-        }
-
+        }*/
         //enteredBy = ele.getEnteredBy();
         //dateEntered = ele.getDateEntered();
         //creatorID = ele.getCreator();
-        drg.setPatientID(patientID);
-        drg.setEncounterID(encounterID);
-        drg.setDispensedDate(startDate);
-        drg.setPepfarID(pepfarID);
-        drg.setStrength(strength);
-        drg.setOtherStrength(otherStrength);
-        drg.setHospID(hospID);
-        drg.setDuration(duration);
-        drg.setDurationUnit(durationUnit);
-        drg.setStopDate(stopDate);
-        //drg.setDrugName(drugName);
-        //drg.setStartDate(startDate);
-        //drg.setStopDate(stopDate);
-        drg.setDrugName(drugName);
-        //order.setDrugName(drugName);
-        drg.setFrequency(frequency);
-        drg.setConceptID(drugConceptID);
-        //drg.setRegimenName(regimenName);
-        //drg.setCode(String.valueOf(getCode(regimenName)));
-        //drg.setRegimenLine(regimenLine);
-        drg.setEnteredBy(enteredBy);
-        drg.setDateEntered(dateEntered);
-        //drg.setCreator(creatorID);
-
         //}
         //}
         return drg;
@@ -3158,7 +3174,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 dayVal = duration * 7;
             }
             if (dayVal > 210) {
-               dayVal = 90;
+                dayVal = 90;
             }
         }
         DateTime startDateTime = new DateTime(startDate);
@@ -3168,7 +3184,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
     }
 
     public int calculateDayValue(int duration, String unit) {
-        int dayVal = 0;
+        int dayVal = 90;
         if (StringUtils.isNotBlank(unit)) {
             if (StringUtils.equalsIgnoreCase(unit, "MONTH(S)")) {
                 dayVal = duration * 30;
