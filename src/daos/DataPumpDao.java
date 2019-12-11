@@ -2687,9 +2687,10 @@ public class DataPumpDao implements model.datapump.DataAccess {
             Extract drugName
          */
         obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList,visitDate);// Drug name
-        if (obsPin != null) {
+        if (obsPin != null){
             drugName = obsPin.getVariableValue();
             drugConceptID = obsPin.getValueCoded();//ConceptID();
+            
             patientID = obsPin.getPatientID();
             pepfarID = obsPin.getPepfarID();
             hospID = obsPin.getHospID();

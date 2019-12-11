@@ -36,7 +36,7 @@ public class NDRPharmacyDictionary {
     private Map<String, String> localDrugCodeMapping = new HashMap<String, String>();
     private Map<Integer, String> ndrCodedValues = new HashMap<Integer, String>();
     private List<Integer> arvRegimenList = new ArrayList<Integer>();
-
+    private List<Integer> oiRegimenList=new ArrayList<Integer>();
     public NDRPharmacyDictionary() {
         loadDictionaries();
     }
@@ -46,8 +46,30 @@ public class NDRPharmacyDictionary {
         loadLocalCodingDictionary();
         loadRegimenToCodeDictionary();
         loadARVConcepts();
+        loadOIConcepts();
     }
 
+    private void loadOIConcepts() {
+        Integer[] oiDrugConcepts = {
+            1192, 1193, 1194, 599, 1195,
+            1196, 1198, 1199, 1200, 1201, 594,
+            1202, 1203, 1594, 1204, 1206, 1207,
+            1208, 1209, 1210, 1211, 1212, 37,
+            1213, 11, 1214, 1215, 1216, 963,
+            1217, 1218, 1239, 1240, 1241, 949,
+            950, 10, 7778153, 7778154, 592, 7778155,
+            68, 7778156, 58, 590, 7778158, 35, 34, 1197,
+            1205, 66, 36, 608, 39, 38, 40
+        };
+        oiRegimenList.addAll(Arrays.asList(oiDrugConcepts));
+    }
+    public boolean isOI(Integer valueCoded){
+        boolean ans=false;
+        if(oiRegimenList.contains(valueCoded)){
+            ans=true;
+        }
+        return ans;
+    }
     private void loadARVConcepts() {
         Integer[] arvDrugConcepts = {
             960, 953, 959, 952, 962, 18,
@@ -340,7 +362,7 @@ public class NDRPharmacyDictionary {
         String visitID = NDRCommonUtills.formatDateYYYYMMDD(visitDate) + "-" + pts.getPepfarID();
         String prescribedRegimenLineCode = "";
         Obs obsPin = null;
-        int valueCoded = 0, obsID = 0, duration = 0,durationCodedUnit=0;
+        int valueCoded = 0, obsID = 0, duration = 0, durationCodedUnit = 0;
         CodedSimpleType prescribedRegimenCst = null;
         RegimenType regimenType = null;
         obsPin = NDRCommonUtills.getObsForConceptFromList(7778111, obsList);// RegimenLine
@@ -412,15 +434,15 @@ public class NDRPharmacyDictionary {
                         //durationUnit = "DAY(S)";
                         //stopDate = NDRCommonUtills.calculateStopDate(visitDate, duration, durationUnit);
                     }
-                    obsPin=NDRCommonUtills.getObsForConceptFromListWithGroupID(7778371, obsList, obsID);// Medication Duration unit
-                    if(obsPin!=null){
-                        valueCoded=obsPin.getValueCoded();
-                        durationCodedUnit=valueCoded;
+                    obsPin = NDRCommonUtills.getObsForConceptFromListWithGroupID(7778371, obsList, obsID);// Medication Duration unit
+                    if (obsPin != null) {
+                        valueCoded = obsPin.getValueCoded();
+                        durationCodedUnit = valueCoded;
                     }
                     stopDate = NDRCommonUtills.calculateStopDate(visitDate, duration, durationCodedUnit);
                 }
             }
-            if(stopDate == null) {
+            if (stopDate == null) {
                 obsPin = NDRCommonUtills.getObsForConceptFromList(7777822, obsList);//Return Visit Date
                 if (obsPin != null) {
                     System.out.println("Next Appointment Date value is " + obsPin.getValueDate());
