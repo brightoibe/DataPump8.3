@@ -2694,12 +2694,13 @@ public class DataPumpDao implements model.datapump.DataAccess {
             pepfarID = obsPin.getPepfarID();
             hospID = obsPin.getHospID();
             formID = obsPin.getFormID();
-        } else {
+        }
+        /*else {
             obsPin = getConceptForForm(7778203, formID, obsList, visitDate);
             if (obsPin != null) {
                 drugName = "CTX";
             }
-        }
+        }*/
 
         /*
             Extract the strength; frequency
@@ -2707,7 +2708,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
         obsPin = getConceptForForm(7778365, obsGroupID, formID, obsList, visitDate);
         if (obsPin != null) {
             strength = obsPin.getVariableValue();
-        } else if (StringUtils.equalsIgnoreCase(drugName, "CTX")) {
+        } 
+        /*else if (StringUtils.equalsIgnoreCase(drugName, "CTX")) {
             obsPin = getConceptForForm(7778203, formID, obsList, visitDate);
             if (obsPin != null) {
                 valueCoded = obsPin.getValueCoded();
@@ -2782,7 +2784,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 default:
                     break;
             }
-        } else {
+        } 
+        /*else {
             obsPin = getConceptForForm(7777822, 56, obsList, visitDate);
             Date nextAppointmentDate = null;
             if (obsPin != null) {
@@ -2794,7 +2797,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 durationUnit = "WEEK(S)";
             }
 
-        }
+        }*/
         if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 210) {
             obsPin = getConceptForForm(7778371, obsGroupID, formID, obsList,visitDate); // Drug Duration unit
             if (obsPin != null) {
