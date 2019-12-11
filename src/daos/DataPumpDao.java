@@ -2657,7 +2657,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
     }
 
     public model.datapump.Drugs getDrugObsParameters(int obsGroupID, ArrayList<model.datapump.Obs> obsList, Date visitDate) {
-        model.datapump.Drugs drg = null;
+        model.datapump.Drugs drg = new model.datapump.Drugs();
         int patientID = 0;
         String pepfarID = "";
         String hospID = "";
@@ -2689,6 +2689,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
          */
         obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList, visitDate);// Drug name
         if (obsPin != null) {
+            drugConceptID = obsPin.getValueCoded();//ConceptID();
             if (pharmacyDictionary.isOI(drugConceptID)) {
                 drg=new model.datapump.DrugOrder();
                 patientID = obsPin.getPatientID();
@@ -2696,7 +2697,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 hospID = obsPin.getHospID();
                 formID = obsPin.getFormID();
                 drugName = obsPin.getVariableValue();
-                drugConceptID = obsPin.getValueCoded();//ConceptID();
+                
                 //Extract strength or Other Strength
                 obsPin = getConceptForForm(7778365, obsGroupID, formID, obsList, visitDate);
                 if (obsPin != null) {
