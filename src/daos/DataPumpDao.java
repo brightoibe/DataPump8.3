@@ -2686,7 +2686,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         /*
             Extract drugName
          */
-        obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList);// Drug name
+        obsPin = getConceptForForm(7778364, obsGroupID, formID, obsList,visitDate);// Drug name
         if (obsPin != null) {
             drugName = obsPin.getVariableValue();
             drugConceptID = obsPin.getValueCoded();//ConceptID();
@@ -2704,7 +2704,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         /*
             Extract the strength; frequency
          */
-        obsPin = getConceptForForm(7778365, obsGroupID, formID, obsList);
+        obsPin = getConceptForForm(7778365, obsGroupID, formID, obsList, visitDate);
         if (obsPin != null) {
             strength = obsPin.getVariableValue();
         } else if (StringUtils.equalsIgnoreCase(drugName, "CTX")) {
@@ -2736,14 +2736,14 @@ public class DataPumpDao implements model.datapump.DataAccess {
         /*
            Extract otherStrength
          */
-        obsPin = getConceptForForm(7778390, obsGroupID, formID, obsList);
+        obsPin = getConceptForForm(7778390, obsGroupID, formID, obsList,visitDate);
         if (obsPin != null) {
             otherStrength = obsPin.getValueText();
         }
         /*
             Extracts the frequency
          */
-        obsPin = getConceptForForm(7778407, obsGroupID, formID, obsList);
+        obsPin = getConceptForForm(7778407, obsGroupID, formID, obsList,visitDate);
         if (obsPin != null) {
             frequency = obsPin.getVariableValue();
         }
@@ -2751,7 +2751,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         /*
            Extract duration and durationUnit
          */
-        obsPin = getConceptForForm(7777821, 56, obsList, visitDate);
+        obsPin = getConceptForForm(7777821, obsGroupID, formID, obsList, visitDate);
         if (obsPin != null) {
             valueCoded = obsPin.getValueCoded();
             switch (valueCoded) {
@@ -2795,19 +2795,19 @@ public class DataPumpDao implements model.datapump.DataAccess {
             }
 
         }
-        if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
-            obsPin = getConceptForForm(7778371, obsGroupID, formID, obsList); // Drug Duration unit
+        if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 210) {
+            obsPin = getConceptForForm(7778371, obsGroupID, formID, obsList,visitDate); // Drug Duration unit
             if (obsPin != null) {
                 durationUnit = obsPin.getVariableValue();
             }
-            obsPin = getConceptForForm(7778370, obsGroupID, formID, obsList);// Drug Duration number
+            obsPin = getConceptForForm(7778370, obsGroupID, formID, obsList,visitDate);// Drug Duration number
             if (obsPin != null) {
                 duration = (int) obsPin.getValueNumeric();
             }
 
         }
-        if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 120) {
-            duration = 2;
+        if (StringUtils.isEmpty(durationUnit) || duration == 0 || calculateDayValue(duration, durationUnit) > 210) {
+            duration = 3;
             durationUnit = "MONTH(S)";
         }
         /*
@@ -3144,7 +3144,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
 
     public Date calculateStopDate(Date startDate, int duration, String unit) {
         Date stopDate = null;
-        int dayVal = 30;
+        int dayVal = 90;
         if (StringUtils.isNotBlank(unit)) {
             if (StringUtils.equalsIgnoreCase(unit, "MONTH(S)")) {
                 dayVal = duration * 30;
@@ -3153,10 +3153,9 @@ public class DataPumpDao implements model.datapump.DataAccess {
             } else if (StringUtils.equalsIgnoreCase(unit, "WEEK(S)")) {
                 dayVal = duration * 7;
             }
-
-            //if (dayVal > 120) {
-            // dayVal = 30;
-            //}
+            if (dayVal > 210) {
+               dayVal = 90;
+            }
         }
         DateTime startDateTime = new DateTime(startDate);
         DateTime stopDateTime = startDateTime.plusDays(dayVal);
