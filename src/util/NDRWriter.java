@@ -1597,7 +1597,7 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("DRV/r +2NRTIs", "6b");
         mapRegimenToCodeDictionary.put("DRV/r + RAL (or DTG) ± 1-2 NRTIs", "6d");
         mapRegimenToCodeDictionary.put("DRV/r +DTG ± 1-2 NRTIs", "6c");
-
+        mapRegimenToCodeDictionary.put("ABC-3TC-ATV/r","2f");
         mapRegimenToCodeDictionary.put("AZT-3TC-RAL", "5i");
         mapRegimenToCodeDictionary.put("ABC-3TC-RAL", "5g");
         mapRegimenToCodeDictionary.put("3TC-D4T-EFV", "1k");
@@ -1721,6 +1721,7 @@ public class NDRWriter {
             }
             if(code==null){
                 code=mapRegimenToCodeDictionary.get(regimen);
+                return code;
             }
             
         }
@@ -2423,7 +2424,8 @@ public class NDRWriter {
             
             cst = new CodedSimpleType();
             cst.setCode(getRegimenCode(rgm.getRegimenName(), regimenLineConceptID));// To be handled latter
-            cst.setCodeDescTxt(getCareCardRegimen(rgm.getRegimenName()));
+            //cst.setCodeDescTxt(getCareCardRegimen(rgm.getRegimenName()));
+            cst.setCodeDescTxt(rgm.getRegimenName());
             /*if (regimenLine.equalsIgnoreCase("First Line")) {
             regimenLineCode = "10";
             } else if (regimenLine.equalsIgnoreCase("Second Line")) {
