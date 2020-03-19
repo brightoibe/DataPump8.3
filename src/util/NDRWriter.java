@@ -1602,6 +1602,11 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("ABC-3TC-RAL", "5g");
         mapRegimenToCodeDictionary.put("3TC-D4T-EFV", "1k");
         mapRegimenToCodeDictionary.put("TDF-3TC-DTG", "1m");
+        //Added because of UATH
+        mapRegimenToCodeDictionary.put("TENOFOVIR/LAMIVUDINE/DOLUTEGRAVIR", "1m");
+        mapRegimenToCodeDictionary.put("ABC-3TC-AZT", "1g");
+        
+        
         mapRegimenToCodeDictionary.put("TDF-FTC-DTG", "1o");
         mapRegimenToCodeDictionary.put("ABC-3TC-DTG", "4h");
         mapRegimenToCodeDictionary.put("ABC-FTC-DTG", "4k");
