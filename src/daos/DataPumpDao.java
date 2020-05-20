@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
@@ -157,6 +158,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
     private LocationMap locMap = new LocationMap();
     private DateFormat formatter;
     private NDRPharmacyDictionary pharmacyDictionary;
+    private Properties properties;
 
     public DataPumpDao() {
         zipFileEntryNames = new ArrayList<String>();
@@ -189,15 +191,27 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
+    private Properties getProperties(model.datapump.DBConnection con) {
+        String MAX_POOL="250";
+        if (properties == null) {
+            properties = new Properties();
+            properties.setProperty("user", con.getUsername());
+            properties.setProperty("password", con.getPassword());
+            properties.setProperty("MaxPooledStatements", MAX_POOL);
+        }
+        return properties;
+    }
 
     @Override
     public boolean connect(model.datapump.DBConnection con) {
         boolean ans;
         try {
-            String conString = "jdbc:mysql://" + con.getHostName() + ":" + con.getMysqlPort() + "/" + con.getDatabase() + "?user=" + con.getUsername() + "&password=" + con.getPassword();
+            //String url="";
+            String conString = "jdbc:mysql://" + con.getHostName() + ":" + con.getMysqlPort() + "/" + con.getDatabase() + "?autoReconnect=true&user=" + con.getUsername() + "&password=" + con.getPassword();
             connection = DriverManager.getConnection(conString);
             ans = true;
             connection.setAutoCommit(false);
+            
         } catch (SQLException ex) {
             displayErrors(ex);
             ans = false;
@@ -1214,6 +1228,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                     ArrayList<DrugOrder> ptsOrders = null, ctxInhARVList;
 
                     for (model.datapump.Visit ele : ptsVisitList) {
+                        if(ele!=null && ele.getVisitDate()!=null){
                         obsList = getAllObsForVisit(ele);
                         labObsList = extractLabObs(obsList);
                         //ptsOrders=extractDrugOrderForVisit(ele, orders);
@@ -1236,6 +1251,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                             labReportType = ndrWriter.createLaboratoryReportType(ele, labObsList, artStartDate);
                             conditionType.getLaboratoryReport().add(labReportType);
                         }
+                    }
                     }
                     conditionType.setEncounters(encounterType);
                     individual.getCondition().add(conditionType);
@@ -1322,8 +1338,69 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return ans;
     }
-
     public ArrayList<model.datapump.Obs> getAllObsForVisit(model.datapump.Visit visit) {
+        ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
+        //String sql_text = "select * from obs where VISIT_DATE=? AND PATIENT_ID=? AND FORM_ID IN(24,18,46,56,72,27,20,53,67,47,1) AND VOIDED=0";
+
+        String sql_text = "select \n"
+                + "    `obs`.`obs_id`,\n"
+                + "    `obs`.`person_id`,\n"
+                + "    `obs`.`obs_datetime`,\n"
+                + "    `obs`.`concept_id`,\n"
+                + "    `obs`.`value_numeric`,\n"
+                + "     obs.value_coded,\n"
+                + "     obs.value_text,\n"
+                + "     obs.value_datetime,\n"
+                + "     obs.value_boolean,\n"
+                + "     cast(coalesce(obs.value_coded,`obs`.`value_numeric`,`obs`.`value_datetime`,`obs`.`value_text`) as char charset utf8) AS `variable_value`,\n"
+                + "     `obs`.`date_created`,\n"
+                + "      encounter.date_changed,\n"
+                + "      encounter.date_voided,\n"
+                + "      encounter.changed_by,\n"
+                + "      obs.voided,\n"
+                + "      encounter.voided_by,\n"
+                + "     `obs`.`creator` AS `creator`,\n"
+                + "     `obs`.`encounter_id` AS `encounter_id`,\n"
+                + "     `obs`.`obs_group_id` AS `obs_group_id`,\n"
+                + "     `obs`.`uuid`,\n"
+                + "     `encounter`.`form_id` AS `form_id`,\n"
+                + "     `encounter`.`provider_id` AS `provider_id`,\n"
+                + "     `obs`.`location_id` AS `location_id` \n"
+                + "     from `obs` \n"
+                + "	inner join `patient` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
+                + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
+                + "	where encounter.form_id in(24,18,46,56,72,27,20,53,67,47,1,21) and encounter.encounter_datetime='"+formatDate2(visit.getVisitDate())+"' and  encounter.patient_id='"+visit.getPatientID()+"' and encounter.voided=0   order by obs.person_id\n"
+                + "     	 ";
+        Statement stmt = null;
+        ResultSet rs = null;
+        model.datapump.Obs obs = null;
+        try {
+            stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
+                    java.sql.ResultSet.CONCUR_READ_ONLY);
+            stmt.setFetchSize(Integer.MIN_VALUE);
+            rs = stmt.executeQuery(sql_text);
+            //ps = prepareQuery(sql_text);
+            //System.out.println("Patient ID: "+ visit.getPatientID()+ " Date: "+formatDate2(visit.getVisitDate()));
+            //ps.setDate(1, convertToSQLDate(visit.getVisitDate()));
+            //ps.setInt(2, visit.getPatientID());
+            //rs = ps.executeQuery();
+            while (rs.next()) {
+                obs = constructObs2(rs);
+                obsList.add(obs);
+            }
+            rs.close();
+            stmt.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            screen.updateStatus(ex.getMessage());
+        } finally {
+            cleanUp(rs, stmt);
+        }
+        return obsList;
+    }
+
+
+    public ArrayList<model.datapump.Obs> getAllObsForVisit2(model.datapump.Visit visit) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         //String sql_text = "select * from obs where VISIT_DATE=? AND PATIENT_ID=? AND FORM_ID IN(24,18,46,56,72,27,20,53,67,47,1) AND VOIDED=0";
 
@@ -1361,6 +1438,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         model.datapump.Obs obs = null;
         try {
             ps = prepareQuery(sql_text);
+            System.out.println("Patient ID: "+ visit.getPatientID()+ " Date: "+formatDate2(visit.getVisitDate()));
             ps.setDate(1, convertToSQLDate(visit.getVisitDate()));
             ps.setInt(2, visit.getPatientID());
             rs = ps.executeQuery();
@@ -1814,17 +1892,18 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 + "     from `patient` \n"
                 + "	inner join `obs` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
                 + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
-                + "     where encounter.form_id in(46,53,86) and encounter.patient_id=? and obs.voided=0 order by encounter.patient_id,encounter.encounter_datetime";
+                + "     where encounter.form_id in(46,53,86) and encounter.patient_id="+patientID+" and obs.voided=0 order by encounter.patient_id,encounter.encounter_datetime";
 
-        PreparedStatement ps = null;
+        Statement stmt = null;
         ResultSet rs = null;
         model.datapump.PatientRegimen order = null;
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         model.datapump.Obs obs = null;
         try {
-            ps = prepareQuery(sql_text);
-            ps.setInt(1, patientID);
-            rs = ps.executeQuery();
+            stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
+                    java.sql.ResultSet.CONCUR_READ_ONLY);
+            stmt.setFetchSize(Integer.MIN_VALUE);
+            rs = stmt.executeQuery(sql_text);
             //int duration = 0;
             //String unit = "";
             //Date stopDate = null;
@@ -1851,12 +1930,12 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 drugOrderList.add(order);*/
             }
             rs.close();
-            ps.close();
+            stmt.close();
         } catch (SQLException ex) {
             screen.updateStatus(ex.getMessage());
             ex.printStackTrace();
         } finally {
-            cleanUp(rs, ps);
+            cleanUp(rs, stmt);
         }
         return obsList;
     }
@@ -3106,8 +3185,63 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return order;
     }
-
     public ArrayList<model.datapump.Obs> getPersonalHistoryObs(int patient_id, int location_id) {
+        ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
+        //String sql_text = "select DISTINCT * from obs where form_id in(18,19,45,65,20,29,71,1) and PATIENT_ID=? and VOIDED=0  AND VISIT_DATE>='2001-01-01' GROUP BY PATIENT_ID, CONCEPT_ID ORDER BY DATE_CREATED DESC ";
+        String sql_text = "select DISTINCT \n"
+                + "    `obs`.`obs_id`,\n"
+                + "    `obs`.`person_id`,\n"
+                + "    `obs`.`obs_datetime`,\n"
+                + "    `obs`.`concept_id`,\n"
+                + "    `obs`.`value_numeric`,\n"
+                + "     obs.value_coded,\n"
+                + "     obs.value_text,\n"
+                + "     obs.value_datetime,\n"
+                + "     obs.value_boolean,\n"
+                + "     cast(coalesce(obs.value_coded,`obs`.`value_numeric`,`obs`.`value_datetime`,`obs`.`value_text`) as char charset utf8) AS `variable_value`,\n"
+                + "     `obs`.`date_created`,\n"
+                + "      encounter.date_changed,\n"
+                + "      encounter.date_voided,\n"
+                + "      encounter.changed_by,\n"
+                + "      obs.voided,\n"
+                + "      encounter.voided_by,\n"
+                + "     `obs`.`creator` AS `creator`,\n"
+                + "     `obs`.`encounter_id` AS `encounter_id`,\n"
+                + "     `obs`.`obs_group_id` AS `obs_group_id`,\n"
+                + "     `obs`.`uuid`,\n"
+                + "     `encounter`.`form_id` AS `form_id`,\n"
+                + "     `encounter`.`provider_id` AS `provider_id`,\n"
+                + "     `obs`.`location_id` AS `location_id` \n"
+                + "     from `obs` \n"
+                + "	inner join `patient` on(`patient`.`patient_id` = `obs`.`person_id`)\n"
+                + "     inner join `encounter` on(`encounter`.`encounter_id` = `obs`.`encounter_id`)\n"
+                + "	where encounter.form_id in(18,19,45,65,20,29,71,1) and encounter.voided=0 and encounter.patient_id="+patient_id+" and encounter.encounter_datetime > '2001-01-01'"
+                + "     GROUP BY encounter.patient_id,obs.concept_id order by encounter.date_created";
+
+        Statement stmt = null;
+        ResultSet rs = null;
+        model.datapump.Obs obs = null;
+        try {
+             stmt = connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
+                    java.sql.ResultSet.CONCUR_READ_ONLY);
+            stmt.setFetchSize(Integer.MIN_VALUE);
+            rs = stmt.executeQuery(sql_text);
+            while (rs.next()) {
+                obs = constructObs2(rs);
+                obsList.add(obs);
+            }
+            rs.close();
+            stmt.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            screen.updateStatus(ex.getMessage());
+        } finally {
+            cleanUp(rs, stmt);
+        }
+        return obsList;
+    }
+
+    public ArrayList<model.datapump.Obs> getPersonalHistoryObs2(int patient_id, int location_id) {
         ArrayList<model.datapump.Obs> obsList = new ArrayList<model.datapump.Obs>();
         //String sql_text = "select DISTINCT * from obs where form_id in(18,19,45,65,20,29,71,1) and PATIENT_ID=? and VOIDED=0  AND VISIT_DATE>='2001-01-01' GROUP BY PATIENT_ID, CONCEPT_ID ORDER BY DATE_CREATED DESC ";
         String sql_text = "select DISTINCT \n"
