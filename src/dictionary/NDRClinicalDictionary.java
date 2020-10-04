@@ -47,6 +47,7 @@ public class NDRClinicalDictionary {
         hivEncounterTypeDictionary.put(165048, "P");
         hivEncounterTypeDictionary.put(165049, "PMTCT");
         hivEncounterTypeDictionary.put(165047, "NP");
+        
         //hivEncounterTypeDictionary.put(13, "NK");
 
         /*  FAMILY PLANNING CODE      */

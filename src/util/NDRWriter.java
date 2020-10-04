@@ -1216,6 +1216,7 @@ public class NDRWriter {
         hivEncounterTypeDictionary.put(1259, "PMTCT");
         hivEncounterTypeDictionary.put(7777870, "NP");
         hivEncounterTypeDictionary.put(13, "NK");
+        hivEncounterTypeDictionary.put(7778596,"BF");
 
         /*  FAMILY PLANNING CODE      */
         hivEncounterTypeDictionary.put(1739, "FP");
