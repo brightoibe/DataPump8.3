@@ -36,7 +36,8 @@ public class NDRPharmacyDictionary {
     private Map<String, String> localDrugCodeMapping = new HashMap<String, String>();
     private Map<Integer, String> ndrCodedValues = new HashMap<Integer, String>();
     private List<Integer> arvRegimenList = new ArrayList<Integer>();
-    private List<Integer> oiRegimenList=new ArrayList<Integer>();
+    private List<Integer> oiRegimenList = new ArrayList<Integer>();
+
     public NDRPharmacyDictionary() {
         loadDictionaries();
     }
@@ -63,13 +64,15 @@ public class NDRPharmacyDictionary {
         };
         oiRegimenList.addAll(Arrays.asList(oiDrugConcepts));
     }
-    public boolean isOI(Integer valueCoded){
-        boolean ans=false;
-        if(oiRegimenList.contains(valueCoded)){
-            ans=true;
+
+    public boolean isOI(Integer valueCoded) {
+        boolean ans = false;
+        if (oiRegimenList.contains(valueCoded)) {
+            ans = true;
         }
         return ans;
     }
+
     private void loadARVConcepts() {
         Integer[] arvDrugConcepts = {
             960, 953, 959, 952, 962, 18,
@@ -81,10 +84,21 @@ public class NDRPharmacyDictionary {
             7778159, 1219, 1232, 1223,
             1233, 1234, 1229, 1226, 1230,
             1231, 7778592, 7778594, 7778595,
-            7778597, 7778598,7778688,7777919,7778641,
-            7778128,7777935,7777818,7777880,7777936,
-            7777934,7778128,7777935,7777811,7777818,23,
-            954,1191
+            7778597, 7778598, 7778688, 7777919, 7778641,
+            7778128, 7777935, 7777818, 7777880, 7777936,
+            7777934, 7778128, 7777935, 7777811, 7777818, 23,
+            954, 1191, 7778723, 7778601, 7778603, 7778642,
+            7777813, 7777931, 7777919, 7777916, 7777811,
+            7777880, 7777810, 7777814, 7778139, 7777922,
+            7778647, 7778641, 7778554, 7777812, 7777929, 7777930,
+            7778724, 7777920, 7777919, 7778136, 7778557,
+            7778555, 7777818, 7778640, 7778133, 7777880,
+            7778637, 7778126, 7778128, 7778127, 7777921,
+            7777918, 7778648, 7777936, 7778639, 7778132,
+            7777934, 7778638, 7778125, 7778137, 7778135,
+            7778130, 7778134, 7778129, 7778556, 7777935,
+            7778131, 7777933, 7778124,7778609,7778606,7778605,
+            7778607,7778608, 
         };
         arvRegimenList.addAll(Arrays.asList(arvDrugConcepts));
     }

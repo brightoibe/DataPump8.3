@@ -1597,7 +1597,8 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("DRV/r +2NRTIs", "6b");
         mapRegimenToCodeDictionary.put("DRV/r + RAL (or DTG) ± 1-2 NRTIs", "6d");
         mapRegimenToCodeDictionary.put("DRV/r +DTG ± 1-2 NRTIs", "6c");
-        mapRegimenToCodeDictionary.put("ABC-3TC-ATV/r","2f");
+        mapRegimenToCodeDictionary.put("ABC-3TC-ATV/r","2m");
+         mapRegimenToCodeDictionary.put("ABC-3TC-ATVr","2m");// Included for FMC Keffi
         mapRegimenToCodeDictionary.put("AZT-3TC-RAL", "5i");
         mapRegimenToCodeDictionary.put("ABC-3TC-RAL", "5g");
         mapRegimenToCodeDictionary.put("3TC-D4T-EFV", "1k");
@@ -1607,9 +1608,9 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("ABC-3TC-AZT", "1g");
         
         
-        mapRegimenToCodeDictionary.put("TDF-FTC-DTG", "1o");
-        mapRegimenToCodeDictionary.put("ABC-3TC-DTG", "4h");
-        mapRegimenToCodeDictionary.put("ABC-FTC-DTG", "4k");
+        mapRegimenToCodeDictionary.put("TDF-FTC-DTG", "1n");
+        mapRegimenToCodeDictionary.put("ABC-3TC-DTG", "1o");
+        mapRegimenToCodeDictionary.put("ABC-FTC-DTG", "1p");
         mapRegimenToCodeDictionary.put("Other first line", "1k");
         mapRegimenToCodeDictionary.put("AZT-3TC-EFV", "1a");
         mapRegimenToCodeDictionary.put("AZT-3TC-NVP", "1b");
@@ -1623,7 +1624,8 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("TDF-3TC-LPV/r", "2b");
         mapRegimenToCodeDictionary.put("TDF-FTC-ATV/r", "2c");
         mapRegimenToCodeDictionary.put("TDF-3TC-ATV/r", "2d");
-        mapRegimenToCodeDictionary.put("AZT-3TC-LPV/r", "2e");
+        mapRegimenToCodeDictionary.put("AZT-3TC-LPV/r", "5b");
+        mapRegimenToCodeDictionary.put("AZT-3TC-LPVr", "5b");// Included for FMC Keffi
         mapRegimenToCodeDictionary.put("AZT-3TC-ATV/r", "2f");
         mapRegimenToCodeDictionary.put("AZT-3TC-EFV", "4a");
         mapRegimenToCodeDictionary.put("AZT-3TC-NVP", "4b");
@@ -1631,8 +1633,9 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("ABC-3TC-NVP", "4d");
         mapRegimenToCodeDictionary.put("AZT-3TC-ABC", "4e");
         mapRegimenToCodeDictionary.put("d4T-3TC-NVP", "4f");
-        mapRegimenToCodeDictionary.put("ABC-3TC-LPV/r", "5a");
-        mapRegimenToCodeDictionary.put("AZT-3TC-LPV/r", "5b");
+        mapRegimenToCodeDictionary.put("ABC-3TC-LPV/r", "5a");//test
+        
+        //mapRegimenToCodeDictionary.put("AZT-3TC-LPV/r", "5b");
         mapRegimenToCodeDictionary.put("d4T-3TC-LPV/r", "5c");
         mapRegimenToCodeDictionary.put("ABC-3TC-ddi", "5e");
         mapRegimenToCodeDictionary.put("AZT", "9a");
@@ -1655,7 +1658,7 @@ public class NDRWriter {
         mapRegimenToCodeDictionary.put("3TC-ABC-AZT-ATV/r", "2g");
         mapRegimenToCodeDictionary.put("ATV/r-AZT-3TC-TDF", "2g");
         mapRegimenToCodeDictionary.put("ATV/r-AZT-FTC-TDF", "2g");
-        mapRegimenToCodeDictionary.put("3TC-ABC-ATV/r", "2g");
+        mapRegimenToCodeDictionary.put("3TC-ABC-ATV/r", "2m");
         mapRegimenToCodeDictionary.put("3TC-D4T-SQV/r", "2g");
         mapRegimenToCodeDictionary.put("ABC-SQV/r-TDF", "2g");
         mapRegimenToCodeDictionary.put("ABC-DDI-LPV/r", "2g");
