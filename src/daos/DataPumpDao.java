@@ -1131,7 +1131,8 @@ public class DataPumpDao implements model.datapump.DataAccess {
         ArrayList<model.datapump.Visit> ptsVisitList = null;
         ArrayList<model.datapump.Obs> labObsList = null;
         String messageID = "";
-        String schemaVersion = "1.2";
+        //String schemaVersion = "1.2";
+        String schemaVersion = "1.5";
         JAXBContext jaxbContext = null;
         Container container = null;
         IndividualReportType individual = null;
