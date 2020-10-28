@@ -2456,6 +2456,9 @@ public class NDRWriter {
                 case 7778611:
                     regimenLineCode="30";
                     break;
+                case 7778598:
+                    regimenLineCode="30";
+                    break;
                 case 7778410:
                     regimenLineCode="10";
                     break;
@@ -2886,7 +2889,8 @@ public class NDRWriter {
     public static void main(String[] arg) {
         NDRWriter wr = new NDRWriter();
         wr.loadLocationMap();
-        System.out.println(wr.locationMap.get("3ea88257-e6ba-476f-af78-3804c0abc550"));
+        //wr.loadNDRToOMRSDictionary();
+        //System.out.println(wr.getRegimenCode("DRV/r+2 NRTIs", 7778598));
         //System.out.println("Size: " + wr.locationMap.size());
     }
 
