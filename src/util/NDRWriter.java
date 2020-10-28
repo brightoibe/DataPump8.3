@@ -1592,6 +1592,12 @@ public class NDRWriter {
 
     public void loadRegimenToCodeDictionary() {
         mapRegimenToCodeDictionary = new HashMap<String, String>();
+        mapRegimenToCodeDictionary.put("DRV/r-2NRTIs-NNRTI", "6a"); //DRV/r + 2 NRTIs + 2 NNRTI
+        mapRegimenToCodeDictionary.put("DRV/r+2 NRTIs", "6b"); //DRV/r +2NRTIs
+        mapRegimenToCodeDictionary.put("DRV/r-DTG-1-2 NRTIS", "6c"); //DRV/r-DTG + 1-2 NRTIs
+        mapRegimenToCodeDictionary.put("DRV/r-RAL-1-2NRTIs", "6d"); //DRV/r-RAL + 1-2NRTIs
+        mapRegimenToCodeDictionary.put("DTG + 2NRTIs", "6e"); //DTG+2 NRTIs
+        
         mapRegimenToCodeDictionary.put("DRV/r + DTG ± 1-2 NRTIs", "6c");
         mapRegimenToCodeDictionary.put("DRV/r +2NRTIs ± NNRTI", "6a");
         mapRegimenToCodeDictionary.put("RAL (or DTG) + 2 NRTIs", "6f");
@@ -1740,7 +1746,7 @@ public class NDRWriter {
         if (StringUtils.isEmpty(code) && regimenLineConcept == 7778109) {
             code = "2g";
         }
-        if (StringUtils.isEmpty(code) && regimenLineConcept == 7778611) {
+        if (StringUtils.isEmpty(code) && (regimenLineConcept == 7778611 || regimenLineConcept == 7778598 )) {
             code = "6g";
         }
         return code;

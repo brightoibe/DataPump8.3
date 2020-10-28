@@ -236,8 +236,10 @@ public class NDRPharmacyDictionary {
         String code = null;
         int[] firstLineArr = {7778108};
         int[] secondLineArr = {7778109};
+        int[] thirdLineArr={7778598};
         Arrays.sort(firstLineArr);
         Arrays.sort(secondLineArr);
+         Arrays.sort(thirdLineArr);
 
         Set<String> set = mapRegimenToCodeDictionary.keySet();
         for (String ele : set) {
@@ -321,6 +323,17 @@ public class NDRPharmacyDictionary {
         mapRegimenToCodeDictionary.put("DDI-IDV/r-TDF", "2g");
         mapRegimenToCodeDictionary.put("DDI-SQV/r-TDF", "2g");
         mapRegimenToCodeDictionary.put("Other second line", "2g");
+        /*
+           Third line regimens
+        */
+        mapRegimenToCodeDictionary.put("DRV/r-2NRTIs-NNRTI", "6a"); //DRV/r + 2 NRTIs + 2 NNRTI
+        mapRegimenToCodeDictionary.put("DRV/r+2 NRTIs", "6b"); //DRV/r +2NRTIs
+        mapRegimenToCodeDictionary.put("DRV/r-DTG-1-2 NRTIS", "6c"); //DRV/r-DTG + 1-2 NRTIs
+        mapRegimenToCodeDictionary.put("DRV/r-RAL-1-2NRTIs", "6d"); //DRV/r-RAL + 1-2NRTIs
+        mapRegimenToCodeDictionary.put("DTG + 2NRTIs", "6e"); //DTG+2 NRTIs
+        
+        
+        
 
     }
 
