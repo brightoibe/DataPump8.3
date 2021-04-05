@@ -943,7 +943,8 @@ public class NDRWriter {
         lgaCodeDictionary.put("NWANGELE", "544");
         lgaCodeDictionary.put("OBAFEMI OWODE", "545");
         lgaCodeDictionary.put("OBANLIKU", "546");
-        lgaCodeDictionary.put("OBI", "547");
+        //lgaCodeDictionary.put("OBI", "547");
+        lgaCodeDictionary.put("OBI", "548");
         lgaCodeDictionary.put("OBINGWA", "549");
         lgaCodeDictionary.put("OBIO/AKPOR", "550");
         lgaCodeDictionary.put("OBOKUN", "551");
