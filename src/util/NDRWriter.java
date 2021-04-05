@@ -916,7 +916,7 @@ public class NDRWriter {
         lgaCodeDictionary.put("MUSHIN", "517");
         lgaCodeDictionary.put("NAFADA", "518");
         lgaCodeDictionary.put("NANGERE", "519");
-        lgaCodeDictionary.put("NASARAWA", "520");
+        //lgaCodeDictionary.put("NASARAWA", "520");
         lgaCodeDictionary.put("NASSARAWA", "521");
         lgaCodeDictionary.put("NASSARAWA-EGGON", "522");
         lgaCodeDictionary.put("NDOKWA EAST", "523");
