@@ -833,7 +833,7 @@ public class NDRWriter {
         lgaCodeDictionary.put("KIRI KASAMA", "432");
         lgaCodeDictionary.put("KIRU", "433");
         lgaCodeDictionary.put("KIYAWA", "434");
-        lgaCodeDictionary.put("KOGI", "	435");
+        lgaCodeDictionary.put("KOGI", "435");
         lgaCodeDictionary.put("KOKO/BESSE", "436");
         lgaCodeDictionary.put("KOKONA", "437");
         lgaCodeDictionary.put("OLOKUMA/OPOKUMA", "438");
