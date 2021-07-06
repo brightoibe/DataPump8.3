@@ -68,6 +68,7 @@ import model.Regimen;
 import model.Relationship;
 import model.User;
 import model.Visit;
+import model.datapump.AddressMap;
 import model.datapump.Drugs;
 import model.datapump.Form;
 import model.form.ARTCommence;
@@ -1110,7 +1111,32 @@ public class DataPumpDao implements model.datapump.DataAccess {
         }
         return sampleSet;
     }
-    
+    public List<AddressMap> getAddressMapList(){
+        List<AddressMap> addressMapList=new ArrayList<AddressMap>();
+        String sql_text="select * from lga_map";
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        AddressMap addressMap=null;
+        try{
+            ps=prepareQuery(sql_text);
+            rs=ps.executeQuery();
+            while(rs.next()){
+                addressMap=new AddressMap();
+                addressMap.setLga(rs.getString("lga"));
+                addressMap.setState(rs.getString("state"));
+                addressMap.setLgaCode(rs.getInt("lga_code"));
+                addressMap.setLgaCode(rs.getInt("state_code"));
+                addressMapList.add(addressMap);
+            }
+        }catch(SQLException ex){
+            handleException(ex);
+        }finally{
+            cleanUp(rs, ps);
+        }
+        
+        
+        return addressMapList;
+    }
     public void runNDRExport(Date startDate, Date endDate, File file, model.datapump.Location loc) {//File datimIDFile) {
         ndrWriter = new NDRWriter();
         NDRMasterDictionary NDRDictionary = new NDRMasterDictionary();
