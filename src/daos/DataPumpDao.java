@@ -1125,7 +1125,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
                 addressMap.setLga(rs.getString("lga"));
                 addressMap.setState(rs.getString("state"));
                 addressMap.setLgaCode(rs.getInt("lga_code"));
-                addressMap.setLgaCode(rs.getInt("state_code"));
+                addressMap.setStateCode(rs.getInt("state_code"));
                 addressMapList.add(addressMap);
             }
         }catch(SQLException ex){
