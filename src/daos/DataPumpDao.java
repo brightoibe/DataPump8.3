@@ -1159,7 +1159,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         ArrayList<model.datapump.Obs> labObsList = null;
         String messageID = "";
         //String schemaVersion = "1.2";
-        String schemaVersion = "1.5";
+        String schemaVersion = "1.6";
         JAXBContext jaxbContext = null;
         Container container = null;
         IndividualReportType individual = null;
@@ -1182,6 +1182,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
         FileManager mgr = new FileManager();
         File file2 = null;
         ArrayList<model.datapump.Obs> phamarcyObsList = new ArrayList<model.datapump.Obs>();
+        List<AddressMap> addressMapList=null;
 
         try {
             mgr.createCSVWriter("errorlog.csv");
@@ -1191,6 +1192,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
             Marshaller jaxbMarshaller = ndrWriter.createMarshaller(jaxbContext);
             ndrWriter.loadNDRToOMRSDictionary();
             Set<Integer> idSet = getAllPatientsInDBWithChange(startDate, endDate);
+            addressMapList=getAddressMapList();
             loadFirstRegimens(idSet);
             patients = getAllPatientsInDB(loc.getLocationID(), idSet);
             commonQuestionObsList = getCommonQuestionObs(idSet);
@@ -1213,7 +1215,7 @@ public class DataPumpDao implements model.datapump.DataAccess {
 
                     individual.setPatientDemographics(patientDemographicType);
                     conditionType = ndrWriter.createConditionType("86406008");
-                    conditionType.setPatientAddress(ndrWriter.createAddressType(pts));
+                    conditionType.setPatientAddress(ndrWriter.createAddressType(pts,addressMapList));
                     pa = ndrWriter.createProgramAreaType("HIV");
                     conditionType.setProgramArea(pa);
 
