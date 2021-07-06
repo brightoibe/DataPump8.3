@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.xml.XMLConstants;
@@ -68,6 +69,7 @@ import org.joda.time.Months;
 import org.joda.time.Weeks;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
+import model.datapump.AddressMap;
 
 /**
  *
@@ -88,6 +90,7 @@ public class NDRWriter {
     private HashMap<String, String> mapRegimenToCodeDictionary, stateCodeDictinary, lgaCodeDictionary, localCodeMapping, labTestUnitDescription, locationMap;
     private HashMap<Integer, String> hivQueDictionary, patientDemographicDictionary, hivEncounterTypeDictionary, labTestDictionary, labTestUnits;
     private HashMap<Integer, Concept> conceptDictionary;
+    
     //private LocationMap locMap=new LocationMap();
     // private HashMap<Integer, String> locationMap;
 
@@ -2229,7 +2232,18 @@ public class NDRWriter {
         nextAptDate = visitDateTime.plusDays(dayVal).toDate();
         return nextAptDate;
     }
+    public boolean isValidState(String state) {
+        boolean ans = false;
+        Set<String> stateNamesSet = stateCodeDictinary.keySet();
+        if (!StringUtils.isEmpty(StringUtils.upperCase(state))) {
+            if (stateNamesSet.contains(StringUtils.trim(state))) {
+                ans = true;
+            }
 
+        }
+
+        return ans;
+    }
     public boolean isValidLga(String lga) {
         boolean ans = false;
         Set<String> lgaNamesSet = lgaCodeDictionary.keySet();
@@ -2239,7 +2253,6 @@ public class NDRWriter {
             }
 
         }
-
         return ans;
     }
 
@@ -2256,7 +2269,7 @@ public class NDRWriter {
             address.setCountryCode(countryCode);
             address.setAddressTypeCode(addressType);
             //address.setWardVillage(ward);
-            address.setStateCode(address_state);
+            //address.setStateCode(address_state);
             if (isValidLga(pts.getAddress_lga())) {
                 address_lga = lgaCodeDictionary.get(StringUtils.upperCase(StringUtils.trim(pts.getAddress_lga())));
                 address.setLGACode(address_lga);
@@ -2265,6 +2278,50 @@ public class NDRWriter {
         }
         return address;
     }
+    
+    public AddressMap getAddressMapCode(String state, String lga,List<AddressMap> addressMapList){
+        AddressMap map=null;
+        for(AddressMap addMap: addressMapList){
+            if(StringUtils.equalsIgnoreCase(lga, addMap.getLga()) && StringUtils.equalsIgnoreCase(state, addMap.getState())){
+                map=addMap;
+            }
+        }
+        return map;
+    }
+    
+    public AddressType createAddressType(Demographics pts, List<AddressMap> addressMapList) {
+        AddressType address = null;
+        String countryCode = "NGA";
+        String addressType = "H";
+        AddressMap addressMap=null;
+        if (!StringUtils.isEmpty(pts.getAddress_state()) && !StringUtils.isEmpty(pts.getAddress_lga()) ){//|| !StringUtils.isEmpty(pts.getAddress2()) || !StringUtils.isEmpty(pts.getAddress1())) {
+            addressMap=getAddressMapCode(pts.getAddress_state(), pts.getAddress_lga(), addressMapList);
+            if(addressMap!=null){
+                address = new AddressType();
+                address.setCountryCode(countryCode);
+                address.setAddressTypeCode(addressType);
+                address.setLGACode(String.valueOf(addressMap.getLgaCode()));
+                address.setStateCode(String.valueOf(addressMap.getStateCode()));
+                 
+            }
+            
+            
+             
+            //String address_state_code = stateCodeDictinary.get(StringUtils.upperCase(pts.getAddress_state()));
+            //String address_state_code = StringUtils.upperCase(pts.getAddress_state());
+            //String address_lga_code = null;
+            
+            //address.setWardVillage(ward);
+            //address.setStateCode(address_state_code);
+            //if (isValidLga(pts.getAddress_lga())) {
+                //address_lga_code = lgaCodeDictionary.get(StringUtils.upperCase(StringUtils.trim(pts.getAddress_lga())));
+                //address.setLGACode(address_lga_code);
+            //}
+
+        }
+        return address;
+    }
+    
 
     public String formatDate(Date date) {
         String dateString = "";
@@ -2894,5 +2951,5 @@ public class NDRWriter {
         //System.out.println(wr.getRegimenCode("DRV/r+2 NRTIs", 7778598));
         //System.out.println("Size: " + wr.locationMap.size());
     }
-
+    
 }
